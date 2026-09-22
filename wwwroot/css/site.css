@@ -195,6 +195,14 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 .calendar-event strong,.calendar-event small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .calendar-event small{font-size:10px;opacity:.8;margin-top:2px}
+.calendar-grid{display:block}
+.calendar-weekday-row,.calendar-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.calendar-week{position:relative}
+.calendar-day{min-height:0;padding:8px;gap:0}
+.calendar-week-events{position:absolute;top:36px;left:0;right:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px 0;pointer-events:none}
+.calendar-week-events .calendar-event{position:relative;z-index:1;min-width:0;height:40px;margin:0 2px;padding:4px 7px;pointer-events:auto;border-radius:5px}
+.calendar-week-events .calendar-event.continues-before{margin-left:0;border-top-left-radius:0;border-bottom-left-radius:0;border-left:0}
+.calendar-week-events .calendar-event.continues-after{margin-right:0;border-top-right-radius:0;border-bottom-right-radius:0}
 .unscheduled{border:1px solid #e7eee9;border-top:0;padding:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .unscheduled strong{font-size:11px;color:#829187;margin-right:5px}
 .unscheduled button{border:1px solid #d9e9dd;background:#f2f9f3;color:#34644a;border-radius:5px;padding:5px 8px;font-size:11px}
