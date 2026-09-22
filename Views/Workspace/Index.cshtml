@@ -16,10 +16,11 @@
             <div class="page-meta"><span id="task-count">0 Aufgaben</span><span class="meta-dot"></span><span>Lokaler Workspace</span></div>
         </section>
         <section class="work-area" aria-label="Aufgabenansichten">
-            <div class="tabs-bar"><div id="view-tabs" class="view-tabs" role="tablist"></div><button id="add-view-button" class="add-view-button" title="Neue Ansicht" aria-label="Neue Ansicht">＋</button></div>
+            <div class="tabs-bar"><div id="view-tabs" class="view-tabs" role="tablist" aria-label="Darstellung"></div></div>
+            <div class="config-bar"><span class="config-bar-label">KONFIGURATIONEN</span><div id="config-tabs" class="config-tabs" role="tablist" aria-label="Gespeicherte Konfigurationen"></div><button id="add-view-button" class="add-view-button" title="Neue Konfiguration" aria-label="Neue Konfiguration"><span class="add-view-icon">＋</span><span class="add-view-label">Neue Konfiguration</span></button></div>
             <div class="toolbar">
                 <div class="toolbar-left"><span id="view-icon" class="view-icon"></span><div><div id="view-title" class="view-title"></div><div id="view-description" class="view-description"></div></div></div>
-                <div class="toolbar-actions"><span id="filter-summary" class="filter-summary"></span><button id="edit-view-button" class="quiet-button">⚙ <span>Ansicht konfigurieren</span></button></div>
+                <div class="toolbar-actions"><span id="filter-summary" class="filter-summary"></span><button id="edit-view-button" class="quiet-button">⚙ <span>Konfiguration bearbeiten</span></button></div>
             </div>
             <div id="view-content" class="view-content" aria-live="polite"><div class="loading">Ansicht wird geladen …</div></div>
         </section>
@@ -52,14 +53,14 @@
 
 <dialog id="view-dialog" class="modal" aria-labelledby="view-dialog-heading">
     <form id="view-form">
-        <div class="modal-header"><div><span class="eyebrow">ANSICHT</span><h2 id="view-dialog-heading">Ansicht konfigurieren</h2></div><button type="button" class="icon-button dialog-close" data-dialog="view-dialog" aria-label="Schließen">✕</button></div>
+        <div class="modal-header"><div><span class="eyebrow">ANSICHT</span><h2 id="view-dialog-heading">Konfiguration bearbeiten</h2></div><button type="button" class="icon-button dialog-close" data-dialog="view-dialog" aria-label="Schließen">✕</button></div>
         <div class="modal-body">
             <label class="form-label" for="config-name">Name</label><input id="config-name" maxlength="100" required placeholder="Zum Beispiel: Wichtige Aufgaben" />
             <label class="form-label" for="config-kind">Darstellung</label><select id="config-kind"><option value="Tree">Baum / Tabelle</option><option value="Kanban">Kanban</option><option value="Calendar">Kalender</option><option value="Timeline">Zeitachse</option></select>
             <div class="section-heading"><h3>Angezeigte Felder</h3></div><p class="helper-text">Wähle die Informationen, die in dieser Ansicht sichtbar sind.</p><div id="visible-fields" class="checkbox-grid"></div>
             <div class="section-heading"><h3>Filter</h3><button type="button" id="add-filter-button" class="text-button">＋ Filter hinzufügen</button></div><p class="helper-text">Alle Filter müssen zutreffen.</p><div id="filter-rows" class="filter-rows"></div>
         </div>
-        <div class="modal-footer"><button type="button" id="delete-view-button" class="danger-button" hidden>Ansicht löschen</button><div class="footer-spacer"></div><span id="view-form-error" class="form-error"></span><button type="button" class="secondary-button dialog-close" data-dialog="view-dialog">Abbrechen</button><button type="submit" class="primary-button">Speichern</button></div>
+        <div class="modal-footer"><button type="button" id="delete-view-button" class="danger-button" hidden>Konfiguration löschen</button><div class="footer-spacer"></div><span id="view-form-error" class="form-error"></span><button type="button" class="secondary-button dialog-close" data-dialog="view-dialog">Abbrechen</button><button type="submit" class="primary-button">Speichern</button></div>
     </form>
 </dialog>
 

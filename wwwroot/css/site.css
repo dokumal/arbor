@@ -188,8 +188,6 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 .modal-body{padding-left:18px;padding-right:18px}
 }
 
-:root{}
-
 .card-description{font-size:11px;line-height:1.5;color:#809087;margin:9px 0 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
 .calendar-event{white-space:normal}
@@ -200,5 +198,20 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 .unscheduled{border:1px solid #e7eee9;border-top:0;padding:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .unscheduled strong{font-size:11px;color:#829187;margin-right:5px}
 .unscheduled button{border:1px solid #d9e9dd;background:#f2f9f3;color:#34644a;border-radius:5px;padding:5px 8px;font-size:11px}
+.view-tabs{max-width:100%}
+.config-bar{min-height:61px;display:flex;align-items:center;gap:15px;padding:10px 28px;border-bottom:1px solid #e9eeeb;background:#fbfcfb}
+.config-bar-label{flex:none;color:#9aaa9e;font-size:10px;font-weight:750;letter-spacing:.1em}
+.config-tabs{display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow-x:auto;scrollbar-width:thin}
+.config-item{display:inline-flex;align-items:center;flex:none;border:1px solid #e0e9e2;border-radius:8px;background:#fff;color:#667a6d}
+.config-item.active{background:#eaf6ee;border-color:#acd8bb;color:#087b53}
+.config-tab,.config-edit{border:0;background:transparent;color:inherit;white-space:nowrap}
+.config-tab{padding:8px 10px 8px 12px;font-size:12px;font-weight:650}
+.config-edit{font-size:17px;line-height:1;padding:5px 9px 8px;border-left:1px solid #e3ebe5}
+.config-item.active .config-edit{border-left-color:#b8ddc3}
+.config-tab:hover,.config-edit:hover{color:#075f42}
+.add-view-button{display:inline-flex;align-items:center;gap:4px;flex:none;width:auto;height:auto;margin:0;border:1px dashed #b9d7c5;background:#fff;color:#0b8158;border-radius:7px;padding:8px 11px;font-size:12px;font-weight:650;white-space:nowrap}
+.add-view-button:hover{background:#eaf6ef;color:#075f42}
+.add-view-icon{font-size:17px;line-height:1}
+@media(max-width:600px){.config-bar{gap:8px;padding-left:14px;padding-right:14px}.config-bar-label,.add-view-label{display:none}.add-view-button{padding:7px 10px}}
 
 

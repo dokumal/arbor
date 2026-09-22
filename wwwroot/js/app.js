@@ -7,7 +7,8 @@ const localMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2
 const monday = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
 const ui = {
-    viewId: localStorage.getItem('arbor-view'), selectedTaskId: null,
+    viewId: localStorage.getItem('arbor-view'), kind: localStorage.getItem('arbor-kind'),
+    selectedTaskId: null,
     expanded: new Set(), seenTasks: new Set(), month: localMonth,
     timelineWeek: monday.toISOString().slice(0, 10), editingViewId: null
 };
@@ -15,19 +16,26 @@ let workspace = { tasks: [], matchingTaskIds: [], customFields: [], views: [] };
 let dragTaskId = null;
 let toastTimer;
 
-const currentView = () => workspace.views.find(view => view.id === ui.viewId) || workspace.views[0];
+const currentView = () => workspace.views.find(view => view.id === ui.viewId && view.kind === ui.kind) || null;
 const taskById = id => workspace.tasks.find(task => task.id === id);
 
-async function loadWorkspace(preferredViewId = ui.viewId) {
+async function loadWorkspace(preferredViewId = ui.viewId, preferredKind = ui.kind) {
     const query = preferredViewId ? `?viewId=${encodeURIComponent(preferredViewId)}` : '';
     workspace = await api(`/api/workspace${query}`);
-    if (!workspace.views.some(view => view.id === preferredViewId)) {
-        ui.viewId = workspace.views[0]?.id || null;
-        if (ui.viewId && ui.viewId !== preferredViewId) {
-            workspace = await api(`/api/workspace?viewId=${encodeURIComponent(ui.viewId)}`);
-        }
-    } else ui.viewId = preferredViewId;
-    if (ui.viewId) localStorage.setItem('arbor-view', ui.viewId);
+    const requestedView = workspace.views.find(view => view.id === preferredViewId);
+    ui.kind = kinds[preferredKind] ? preferredKind : requestedView?.kind || 'Tree';
+    const available = workspace.views.filter(view => view.kind === ui.kind);
+    const selected = available.find(view => view.id === preferredViewId)
+        || available.find(view => view.id === localStorage.getItem(`arbor-view-${ui.kind}`))
+        || available[0] || null;
+    ui.viewId = selected?.id || null;
+    if (ui.viewId && ui.viewId !== preferredViewId)
+        workspace = await api(`/api/workspace?viewId=${encodeURIComponent(ui.viewId)}`);
+    localStorage.setItem('arbor-kind', ui.kind);
+    if (ui.viewId) {
+        localStorage.setItem('arbor-view', ui.viewId);
+        localStorage.setItem(`arbor-view-${ui.kind}`, ui.viewId);
+    } else localStorage.removeItem('arbor-view');
     workspace.tasks.forEach(task => {
         if (!ui.seenTasks.has(task.id)) {
             ui.expanded.add(task.id);
@@ -40,12 +48,17 @@ async function loadWorkspace(preferredViewId = ui.viewId) {
 function render() {
     const view = currentView();
     $('task-count').textContent = `${workspace.tasks.length} ${workspace.tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'}`;
-    $('view-tabs').innerHTML = workspace.views.map(item => `<button class="view-tab ${item.id === ui.viewId ? 'active' : ''}" data-action="select-view" data-id="${item.id}" role="tab" aria-selected="${item.id === ui.viewId}"><span class="tab-symbol">${kinds[item.kind]?.icon || '☷'}</span>${escapeHtml(item.name)}</button>`).join('');
-    $('view-icon').textContent = kinds[view?.kind]?.icon || '☷';
-    $('view-title').textContent = view?.name || 'Aufgaben';
-    $('view-description').textContent = kinds[view?.kind]?.description || '';
-    $('filter-summary').textContent = view?.filters.length ? `${view.filters.length} ${view.filters.length === 1 ? 'Filter aktiv' : 'Filter aktiv'}` : '';
-    $('view-content').innerHTML = renderView(workspace, view, ui);
+    $('view-tabs').innerHTML = Object.entries(kinds).map(([kind, details]) =>
+        `<button class="view-tab ${kind === ui.kind ? 'active' : ''}" data-action="select-kind" data-kind="${kind}" role="tab" aria-selected="${kind === ui.kind}"><span class="tab-symbol">${details.icon}</span>${escapeHtml(details.label)}</button>`).join('');
+    $('config-tabs').innerHTML = workspace.views.filter(item => item.kind === ui.kind).map(item =>
+        `<span class="config-item ${item.id === ui.viewId ? 'active' : ''}"><button class="config-tab" data-action="select-view" data-id="${item.id}" role="tab" aria-selected="${item.id === ui.viewId}">${escapeHtml(item.name)}</button><button class="config-edit" data-action="edit-view" data-id="${item.id}" title="${escapeHtml(item.name)} bearbeiten" aria-label="${escapeHtml(item.name)} bearbeiten">⋯</button></span>`).join('');
+    $('view-icon').textContent = kinds[ui.kind]?.icon || '☷';
+    $('view-title').textContent = view?.name || 'Noch keine Konfiguration';
+    $('view-description').textContent = kinds[ui.kind]?.description || '';
+    $('filter-summary').textContent = view?.filters.length ? `${view.filters.length} Filter aktiv` : '';
+    $('edit-view-button').hidden = !view;
+    $('view-content').innerHTML = view ? renderView(workspace, view, ui)
+        : `<div class="empty-state"><h3>Keine Konfiguration für ${escapeHtml(kinds[ui.kind]?.label || 'diese Sicht')}</h3><p>Erstelle eine Konfiguration mit deinen gewünschten Filtern und Feldern.</p><button class="primary-button" data-action="new-view">＋ Konfiguration erstellen</button></div>`;
 }
 
 function notify(message) {
@@ -171,9 +184,9 @@ function openViewDialog(id = null) {
     const view = id ? workspace.views.find(item => item.id === id) : null;
     ui.editingViewId = view?.id || null;
     $('view-form').reset(); $('view-form-error').textContent = '';
-    $('view-dialog-heading').textContent = view ? 'Ansicht konfigurieren' : 'Neue Ansicht';
+    $('view-dialog-heading').textContent = view ? 'Konfiguration bearbeiten' : 'Neue Konfiguration';
     $('config-name').value = view?.name || '';
-    $('config-kind').value = view?.kind || 'Tree';
+    $('config-kind').value = view?.kind || ui.kind || 'Tree';
     $('delete-view-button').hidden = !view;
     const selected = new Set(view?.visibleFields || ['title', 'status', 'dueDate']);
     $('visible-fields').innerHTML = allFieldChoices().map(([key, label]) => `<label><input type="checkbox" value="${key}" ${selected.has(key) ? 'checked' : ''} ${key === 'title' ? 'disabled' : ''} />${escapeHtml(label)}</label>`).join('');
@@ -200,14 +213,23 @@ async function saveView(event) {
     try {
         const id = ui.editingViewId;
         const result = await api(id ? `/api/views/${id}` : '/api/views', { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
-        $('view-dialog').close(); await loadWorkspace(id || result.id); notify('Ansicht gespeichert.');
+        $('view-dialog').close(); await loadWorkspace(id || result.id, payload.kind); notify('Konfiguration gespeichert.');
     } catch (error) { showError('view-form-error', error); }
 }
 
 async function deleteView() {
     const id = ui.editingViewId;
-    if (!id || !confirm('Diese Ansicht wirklich löschen?')) return;
-    try { await api(`/api/views/${id}`, { method: 'DELETE' }); $('view-dialog').close(); ui.viewId = null; await loadWorkspace(null); notify('Ansicht gelöscht.'); }
+    if (!id || !confirm('Diese Konfiguration wirklich löschen?')) return;
+    try {
+        await api(`/api/views/${id}`, { method: 'DELETE' });
+        $('view-dialog').close();
+        if (id === ui.viewId) {
+            localStorage.removeItem(`arbor-view-${ui.kind}`);
+            ui.viewId = null;
+        }
+        await loadWorkspace(ui.viewId, ui.kind);
+        notify('Konfiguration gelöscht.');
+    }
     catch (error) { showError('view-form-error', error); }
 }
 
@@ -253,7 +275,10 @@ document.addEventListener('click', async event => {
     const action = event.target.closest('[data-action]');
     if (!action) return;
     switch (action.dataset.action) {
-        case 'select-view': await loadWorkspace(action.dataset.id); break;
+        case 'select-kind': await loadWorkspace(null, action.dataset.kind); break;
+        case 'select-view': await loadWorkspace(action.dataset.id, ui.kind); break;
+        case 'edit-view': openViewDialog(action.dataset.id); break;
+        case 'new-view': openViewDialog(); break;
         case 'new-task': openTask(null, { status: action.dataset.status }); break;
         case 'open-task': openTask(action.dataset.id); break;
         case 'toggle': event.stopPropagation(); ui.expanded.has(action.dataset.id) ? ui.expanded.delete(action.dataset.id) : ui.expanded.add(action.dataset.id); render(); break;
