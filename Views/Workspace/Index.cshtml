@@ -1,0 +1,71 @@
+@{
+    ViewData["Title"] = "Aufgaben";
+}
+@Html.AntiForgeryToken()
+<div class="app-shell">
+    <header class="topbar">
+        <div class="brand"><span class="brand-mark">✳</span><span>arbor</span><span class="brand-divider"></span><span class="workspace-name">Mein Workspace</span></div>
+        <div class="top-actions">
+            <button class="icon-button" id="field-manager-button" title="Benutzerdefinierte Felder" aria-label="Benutzerdefinierte Felder">⚙</button>
+            <button class="primary-button" id="new-task-button"><span>＋</span> Aufgabe</button>
+        </div>
+    </header>
+    <main>
+        <section class="page-heading">
+            <div><div class="eyebrow">WORKSPACE</div><h1>Aufgaben</h1><p>Plane, ordne und behalte deine Arbeit im Blick.</p></div>
+            <div class="page-meta"><span id="task-count">0 Aufgaben</span><span class="meta-dot"></span><span>Lokaler Workspace</span></div>
+        </section>
+        <section class="work-area" aria-label="Aufgabenansichten">
+            <div class="tabs-bar"><div id="view-tabs" class="view-tabs" role="tablist"></div><button id="add-view-button" class="add-view-button" title="Neue Ansicht" aria-label="Neue Ansicht">＋</button></div>
+            <div class="toolbar">
+                <div class="toolbar-left"><span id="view-icon" class="view-icon"></span><div><div id="view-title" class="view-title"></div><div id="view-description" class="view-description"></div></div></div>
+                <div class="toolbar-actions"><span id="filter-summary" class="filter-summary"></span><button id="edit-view-button" class="quiet-button">⚙ <span>Ansicht konfigurieren</span></button></div>
+            </div>
+            <div id="view-content" class="view-content" aria-live="polite"><div class="loading">Ansicht wird geladen …</div></div>
+        </section>
+    </main>
+</div>
+
+<div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+<aside id="task-drawer" class="task-drawer" aria-labelledby="drawer-caption" aria-hidden="true" hidden>
+    <div class="drawer-header"><span id="drawer-caption">AUFGABE</span><button id="close-task-button" class="icon-button" aria-label="Schließen">✕</button></div>
+    <form id="task-form" class="drawer-form">
+        <input type="hidden" id="task-id" />
+        <div class="drawer-scroll">
+            <label class="form-label" for="task-title">Titel</label>
+            <textarea id="task-title" class="title-input" rows="2" maxlength="300" required placeholder="Was steht an?"></textarea>
+            <div class="field-grid">
+                <label><span>Status</span><select id="task-status"><option value="Todo">Offen</option><option value="Doing">In Arbeit</option><option value="Done">Erledigt</option></select></label>
+                <label><span>Übergeordnete Aufgabe</span><select id="task-parent"><option value="">Keine</option></select></label>
+                <label><span>Startdatum</span><input id="task-start" type="date" /></label>
+                <label><span>Fällig am</span><input id="task-due" type="date" /></label>
+            </div>
+            <label class="form-label" for="task-description">Beschreibung</label>
+            <textarea id="task-description" class="description-input" rows="6" placeholder="Details, Notizen und nächste Schritte …"></textarea>
+            <div class="section-heading"><h3>Benutzerdefinierte Felder</h3><button type="button" id="drawer-add-field" class="text-button">＋ Feld erstellen</button></div>
+            <div id="task-custom-fields" class="custom-fields"></div>
+            <div id="task-children-section" class="children-section" hidden><div class="section-heading"><h3>Unteraufgaben</h3><button type="button" id="add-child-button" class="text-button">＋ Hinzufügen</button></div><div id="task-children"></div></div>
+        </div>
+        <div class="drawer-footer"><button type="button" id="delete-task-button" class="danger-button" hidden>Löschen</button><div class="footer-spacer"></div><span id="task-form-error" class="form-error"></span><button type="submit" class="primary-button">Speichern</button></div>
+    </form>
+</aside>
+
+<dialog id="view-dialog" class="modal" aria-labelledby="view-dialog-heading">
+    <form id="view-form">
+        <div class="modal-header"><div><span class="eyebrow">ANSICHT</span><h2 id="view-dialog-heading">Ansicht konfigurieren</h2></div><button type="button" class="icon-button dialog-close" data-dialog="view-dialog" aria-label="Schließen">✕</button></div>
+        <div class="modal-body">
+            <label class="form-label" for="config-name">Name</label><input id="config-name" maxlength="100" required placeholder="Zum Beispiel: Wichtige Aufgaben" />
+            <label class="form-label" for="config-kind">Darstellung</label><select id="config-kind"><option value="Tree">Baum / Tabelle</option><option value="Kanban">Kanban</option><option value="Calendar">Kalender</option><option value="Timeline">Zeitachse</option></select>
+            <div class="section-heading"><h3>Angezeigte Felder</h3></div><p class="helper-text">Wähle die Informationen, die in dieser Ansicht sichtbar sind.</p><div id="visible-fields" class="checkbox-grid"></div>
+            <div class="section-heading"><h3>Filter</h3><button type="button" id="add-filter-button" class="text-button">＋ Filter hinzufügen</button></div><p class="helper-text">Alle Filter müssen zutreffen.</p><div id="filter-rows" class="filter-rows"></div>
+        </div>
+        <div class="modal-footer"><button type="button" id="delete-view-button" class="danger-button" hidden>Ansicht löschen</button><div class="footer-spacer"></div><span id="view-form-error" class="form-error"></span><button type="button" class="secondary-button dialog-close" data-dialog="view-dialog">Abbrechen</button><button type="submit" class="primary-button">Speichern</button></div>
+    </form>
+</dialog>
+
+<dialog id="field-dialog" class="modal narrow-modal" aria-labelledby="field-dialog-heading">
+    <div class="modal-header"><div><span class="eyebrow">WORKSPACE</span><h2 id="field-dialog-heading">Eigene Felder</h2></div><button type="button" class="icon-button dialog-close" data-dialog="field-dialog" aria-label="Schließen">✕</button></div>
+    <div class="modal-body"><div id="field-list" class="field-list"></div><div class="section-heading"><h3>Neues Feld</h3></div><form id="field-form"><label class="form-label" for="field-name">Name</label><input id="field-name" maxlength="100" required placeholder="Zum Beispiel: Kunde" /><label class="form-label" for="field-type">Typ</label><select id="field-type"><option value="Text">Text</option><option value="Select">Auswahl</option><option value="Number">Zahl</option><option value="Date">Datum</option><option value="Boolean">Ja / Nein</option></select><div id="field-options-wrap" hidden><label class="form-label" for="field-options">Optionen (eine pro Zeile)</label><textarea id="field-options" rows="4" placeholder="Niedrig&#10;Mittel&#10;Hoch"></textarea></div><div class="inline-submit"><span id="field-form-error" class="form-error"></span><button type="submit" class="primary-button">Feld erstellen</button></div></form></div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
