@@ -15,6 +15,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<TaskService>();
+builder.Services.AddSingleton<TaskImageStorage>();
 builder.Services.AddScoped<WorkspaceService>();
 builder.Services.AddControllersWithViews(options =>
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()))

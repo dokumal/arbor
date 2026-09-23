@@ -1,5 +1,6 @@
 import { api } from './api.js';
 import { escapeHtml, fieldLabel, kinds, renderView, statuses } from './render.js';
+import { getDescription, setDescription } from './description-editor.js';
 
 const $ = id => document.getElementById(id);
 const now = new Date();
@@ -112,7 +113,6 @@ function openTask(id = null, options = {}) {
     $('task-id').value = task?.id || '';
     $('drawer-caption').textContent = task ? 'AUFGABE BEARBEITEN' : 'NEUE AUFGABE';
     $('task-title').value = task?.title || '';
-    $('task-description').value = task?.description || '';
     $('task-status').value = task?.status || options.status || 'Todo';
     $('task-start').value = task?.startDate || '';
     $('task-due').value = task?.dueDate || '';
@@ -128,6 +128,7 @@ function openTask(id = null, options = {}) {
     $('drawer-backdrop').hidden = false;
     $('task-drawer').hidden = false;
     $('task-drawer').setAttribute('aria-hidden', 'false');
+    setDescription(task?.description || '');
     render();
     $('task-title').focus();
 }
@@ -147,7 +148,7 @@ async function saveTask(event) {
     const fields = {};
     $('task-custom-fields').querySelectorAll('[data-field-id]').forEach(input => fields[input.dataset.fieldId] = input.value || null);
     const payload = {
-        title: $('task-title').value.trim(), description: $('task-description').value,
+        title: $('task-title').value.trim(), description: getDescription(),
         parentTaskId: $('task-parent').value || null, status: $('task-status').value,
         startDate: $('task-start').value || null, dueDate: $('task-due').value || null, fields
     };

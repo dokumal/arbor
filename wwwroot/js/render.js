@@ -23,7 +23,18 @@ export function fieldValue(task, key, definitions) {
     }
     if (key === 'status') return statuses[task.status] || task.status;
     if (key === 'startDate' || key === 'dueDate') return formatDate(task[key]);
+    if (key === 'description') return descriptionText(task.description);
     return task[key] || '';
+}
+
+function descriptionText(value) {
+    if (!value) return '';
+    if (!/<[a-z][^>]*>/i.test(value)) return value;
+    const plain = value.replace(/<\/?(?:p|div|li|h[1-6]|tr|br)\b[^>]*>/gi, ' ')
+        .replace(/<[^>]*>/g, ' ');
+    const decoder = document.createElement('textarea');
+    decoder.innerHTML = plain;
+    return decoder.value.replace(/\s+/g, ' ').trim();
 }
 
 export function formatDate(value, options = { day: '2-digit', month: 'short', year: 'numeric' }) {
@@ -90,7 +101,7 @@ function renderCell(task, key, definitions) {
 function renderKanban(tasks, view, definitions) {
     return `<div class="kanban-board">${Object.entries(statuses).map(([status, label]) => {
         const columnTasks = tasks.filter(task => task.status === status);
-        return `<section class="kanban-column" data-status="${status}"><div class="column-heading"><span class="status-dot ${status}"></span>${label}<span class="column-count">${columnTasks.length}</span></div><div class="column-body">${columnTasks.map(task => `<article class="kanban-card" draggable="true" data-action="open-task" data-id="${task.id}"><div class="card-title">${escapeHtml(task.title)}</div>${view.visibleFields.includes('description') && task.description ? `<p class="card-description">${escapeHtml(task.description)}</p>` : ''}<div class="card-meta">${view.visibleFields.filter(key => !['title', 'status', 'description'].includes(key)).map(key => fieldValue(task, key, definitions) ? `<span>${escapeHtml(fieldLabel(key, definitions))}: ${escapeHtml(fieldValue(task, key, definitions))}</span>` : '').join('')}</div></article>`).join('')}<button class="add-column-task" data-action="new-task" data-status="${status}">＋ Aufgabe hinzufügen</button></div></section>`;
+        return `<section class="kanban-column" data-status="${status}"><div class="column-heading"><span class="status-dot ${status}"></span>${label}<span class="column-count">${columnTasks.length}</span></div><div class="column-body">${columnTasks.map(task => `<article class="kanban-card" draggable="true" data-action="open-task" data-id="${task.id}"><div class="card-title">${escapeHtml(task.title)}</div>${view.visibleFields.includes('description') && task.description ? `<p class="card-description">${escapeHtml(descriptionText(task.description))}</p>` : ''}<div class="card-meta">${view.visibleFields.filter(key => !['title', 'status', 'description'].includes(key)).map(key => fieldValue(task, key, definitions) ? `<span>${escapeHtml(fieldLabel(key, definitions))}: ${escapeHtml(fieldValue(task, key, definitions))}</span>` : '').join('')}</div></article>`).join('')}<button class="add-column-task" data-action="new-task" data-status="${status}">＋ Aufgabe hinzufügen</button></div></section>`;
     }).join('')}</div>`;
 }
 

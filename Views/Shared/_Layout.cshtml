@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
     <title>@ViewData["Title"] · Arbor</title>
+    <link rel="stylesheet" href="~/lib/suneditor/suneditor.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/lib/suneditor/suneditor-contents.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
     @RenderBody()
+    <script src="~/lib/suneditor/suneditor.min.js" asp-append-version="true"></script>
     <script type="module" src="~/js/app.js" asp-append-version="true"></script>
 </body>
 </html>

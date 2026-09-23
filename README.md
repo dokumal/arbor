@@ -30,18 +30,21 @@ Die Zugangsdaten der automatisch angelegten Datenbank werden lokal unter `.local
 
 ## Funktionen
 
-- Aufgaben mit beliebig tiefen Unteraufgaben, Status, Beschreibung sowie Start- und Fälligkeitsdatum
+- Aufgaben mit beliebig tiefen Unteraufgaben, Status, formatierter Beschreibung sowie Start- und Fälligkeitsdatum
 - Seitliches Detailfenster beim Öffnen einer Aufgabe
 - Eigene Felder vom Typ Text, Zahl, Datum, Auswahl und Ja/Nein
 - Gespeicherte Ansichten für Baum/Tabelle, Kanban, Kalender und Zeitachse
 - Pro Ansicht auswählbare sichtbare Felder und kombinierbare Filter, auch auf eigene Felder
 - Statuswechsel im Kanban per Drag & Drop
+- SunEditor für Überschriften, Listen, Tabellen und Bilder in Aufgabenbeschreibungen. Bilder lassen sich auch aus der Zwischenablage einfügen und werden lokal unter `.local/images` gespeichert.
 
 Für die Baumansicht werden bei Treffern unterhalb eines gefilterten Elternknotens die nötigen Vorfahren zur Orientierung mit angezeigt. Die eigentlichen Filtertreffer bestimmt der Server.
 
 ## Aufbau
 
 `Domain` enthält die Datenobjekte, `Data` den EF Core Kontext und die Migration. `Services` übernimmt Aufgabenänderungen, Filterung und die Initialisierung. `Controllers` stellt die Oberfläche und JSON Endpunkte bereit. Die Razor Seite liegt unter `Views/Workspace`, die Oberfläche unter `wwwroot/js` und `wwwroot/css`.
+
+SunEditor 3.3.3 liegt mitsamt Lizenz lokal unter `wwwroot/lib/suneditor`. Zum Starten ist deshalb weder npm noch eine CDN-Verbindung nötig. Für eingefügte Bilder gilt ein Limit von 5 MB pro Bild; unterstützt werden PNG, JPEG, GIF und WebP.
 
 Neue Datenbankänderungen lassen sich mit dem lokalen EF Werkzeug erzeugen:
 

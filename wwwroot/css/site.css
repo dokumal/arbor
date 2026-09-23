@@ -122,6 +122,10 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 .field-grid select,.field-grid input,.custom-field input,.custom-field select,.modal input,.modal select,.modal textarea,.description-input{width:100%;border:1px solid #dce6dd;border-radius:8px;background:#fff;color:#283d30;padding:10px 11px;min-height:40px;outline:none}
 .field-grid select:focus,.field-grid input:focus,.custom-field input:focus,.custom-field select:focus,.modal input:focus,.modal select:focus,.modal textarea:focus,.description-input:focus{border-color:#34aa75;box-shadow:0 0 0 3px #3aaa7423}
 .description-input{resize:vertical;line-height:1.5}
+.task-drawer .sun-editor{width:100%;border-color:#dce6dd;border-radius:8px;overflow:hidden}
+.task-drawer .sun-editor .se-toolbar{background:#fbfcfb}
+.task-drawer .sun-editor .sun-editor-editable{font-family:inherit;font-size:13px;line-height:1.6;color:#283d30}
+.task-drawer .sun-editor .sun-editor-editable img{max-width:100%;height:auto}
 .section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:30px 0 12px}
 .section-heading h3{margin:0;font-size:14px;letter-spacing:-.015em}
 .text-button{border:0;background:transparent;color:#08865a;font-size:12px;font-weight:650;padding:5px}
