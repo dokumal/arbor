@@ -1,8 +1,10 @@
 import { api } from './api.js';
 import { escapeHtml, fieldLabel, kinds, renderView, statuses } from './render.js';
 import { getDescription, setDescription } from './description-editor.js';
+import { initializeTaskDisplay } from './task-display.js';
 
 const $ = id => document.getElementById(id);
+initializeTaskDisplay($('task-drawer'), $('task-display-toggle'));
 const now = new Date();
 const localMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 const monday = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
@@ -10,11 +12,12 @@ monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
 const ui = {
     viewId: localStorage.getItem('arbor-view'), kind: localStorage.getItem('arbor-kind'),
     selectedTaskId: null,
-    expanded: new Set(), seenTasks: new Set(), month: localMonth,
+    expanded: new Set(), seenTasks: new Set(), collapsedGroups: new Set(), month: localMonth,
     timelineWeek: monday.toISOString().slice(0, 10), editingViewId: null
 };
 let workspace = { tasks: [], matchingTaskIds: [], customFields: [], views: [] };
 let dragTaskId = null;
+let dragGroupKey = null;
 let toastTimer;
 
 const currentView = () => workspace.views.find(view => view.id === ui.viewId && view.kind === ui.kind) || null;
@@ -171,6 +174,13 @@ const builtinFields = [
 ];
 function allFieldChoices() { return [...builtinFields, ...workspace.customFields.map(field => [`field:${field.id}`, field.name])]; }
 
+function updateGroupingSettings() {
+    const calendar = $('config-kind').value === 'Calendar';
+    $('grouping-settings').hidden = calendar;
+    $('config-group-by').disabled = calendar;
+    if (calendar) $('config-group-by').value = '';
+}
+
 function filterValueControl(fieldKey, value = '') {
     const field = workspace.customFields.find(item => fieldKey === `field:${item.id}`);
     const choices = fieldKey === 'status' ? Object.entries(statuses) :
@@ -188,6 +198,10 @@ function openViewDialog(id = null) {
     $('view-dialog-heading').textContent = view ? 'Konfiguration bearbeiten' : 'Neue Konfiguration';
     $('config-name').value = view?.name || '';
     $('config-kind').value = view?.kind || ui.kind || 'Tree';
+    $('config-group-by').innerHTML = '<option value="">Keine Gruppierung</option>' +
+        allFieldChoices().map(([key, label]) => `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`).join('');
+    $('config-group-by').value = view?.groupByField || '';
+    updateGroupingSettings();
     $('delete-view-button').hidden = !view;
     const selected = new Set(view?.visibleFields || ['title', 'status', 'dueDate']);
     $('visible-fields').innerHTML = allFieldChoices().map(([key, label]) => `<label><input type="checkbox" value="${key}" ${selected.has(key) ? 'checked' : ''} ${key === 'title' ? 'disabled' : ''} />${escapeHtml(label)}</label>`).join('');
@@ -210,7 +224,9 @@ async function saveView(event) {
     event.preventDefault(); $('view-form-error').textContent = '';
     const visibleFields = ['title', ...Array.from($('visible-fields').querySelectorAll('input:checked')).map(input => input.value)].filter((value, index, values) => values.indexOf(value) === index);
     const filters = Array.from($('filter-rows').querySelectorAll('.filter-row')).map(row => ({ field: row.querySelector('.filter-field').value, operator: row.querySelector('.filter-operator').value, value: row.querySelector('.filter-value').value }));
-    const payload = { name: $('config-name').value.trim(), kind: $('config-kind').value, visibleFields, filters };
+    const payload = { name: $('config-name').value.trim(), kind: $('config-kind').value,
+        groupByField: $('config-kind').value === 'Calendar' ? null : $('config-group-by').value || null,
+        visibleFields, filters };
     try {
         const id = ui.editingViewId;
         const result = await api(id ? `/api/views/${id}` : '/api/views', { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
@@ -283,6 +299,11 @@ document.addEventListener('click', async event => {
         case 'new-task': openTask(null, { status: action.dataset.status }); break;
         case 'open-task': openTask(action.dataset.id); break;
         case 'toggle': event.stopPropagation(); ui.expanded.has(action.dataset.id) ? ui.expanded.delete(action.dataset.id) : ui.expanded.add(action.dataset.id); render(); break;
+        case 'toggle-group': {
+            const key = JSON.stringify([ui.viewId, action.dataset.group]);
+            ui.collapsedGroups.has(key) ? ui.collapsedGroups.delete(key) : ui.collapsedGroups.add(key);
+            render(); break;
+        }
         case 'calendar-prev': shiftMonth(-1); break;
         case 'calendar-next': shiftMonth(1); break;
         case 'timeline-prev': shiftWeek(-1); break;
@@ -295,16 +316,19 @@ document.addEventListener('click', async event => {
 document.addEventListener('dragstart', event => {
     const card = event.target.closest('.kanban-card');
     if (!card) return;
-    dragTaskId = card.dataset.id; event.dataTransfer.effectAllowed = 'move';
+    dragTaskId = card.dataset.id; dragGroupKey = card.dataset.group ?? null;
+    event.dataTransfer.effectAllowed = 'move';
     card.classList.add('dragging');
 });
 document.addEventListener('dragend', event => {
     event.target.closest('.kanban-card')?.classList.remove('dragging');
     document.querySelectorAll('.kanban-column').forEach(column => column.classList.remove('drag-over'));
+    dragTaskId = null; dragGroupKey = null;
 });
 document.addEventListener('dragover', event => {
     const column = event.target.closest('.kanban-column');
     if (!column || !dragTaskId) return;
+    if (dragGroupKey !== null && column.dataset.group !== dragGroupKey && currentView()?.groupByField !== 'status') return;
     event.preventDefault(); column.classList.add('drag-over');
 });
 document.addEventListener('dragleave', event => event.target.closest('.kanban-column')?.classList.remove('drag-over'));
@@ -312,7 +336,11 @@ document.addEventListener('drop', async event => {
     const column = event.target.closest('.kanban-column');
     if (!column || !dragTaskId) return;
     event.preventDefault(); column.classList.remove('drag-over');
-    const task = taskById(dragTaskId); dragTaskId = null;
+    const task = taskById(dragTaskId);
+    if (dragGroupKey !== null && column.dataset.group !== dragGroupKey && currentView()?.groupByField !== 'status') {
+        notify('Aufgaben können nur innerhalb ihrer Gruppe verschoben werden.'); return;
+    }
+    dragTaskId = null; dragGroupKey = null;
     if (!task || task.status === column.dataset.status) return;
     try {
         await api(`/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ ...task, status: column.dataset.status }) });
@@ -321,6 +349,7 @@ document.addEventListener('drop', async event => {
 });
 
 $('new-task-button').addEventListener('click', () => openTask());
+$('config-kind').addEventListener('change', updateGroupingSettings);
 $('close-task-button').addEventListener('click', closeTask);
 $('drawer-backdrop').addEventListener('click', closeTask);
 $('task-form').addEventListener('submit', saveTask);

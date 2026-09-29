@@ -9,5 +9,6 @@ public sealed class ViewConfiguration
     public ViewKind Kind { get; set; }
     public string FiltersJson { get; set; } = "[]";
     public string VisibleFieldsJson { get; set; } = "[]";
+    public string? GroupByField { get; set; }
     public int SortOrder { get; set; }
 }

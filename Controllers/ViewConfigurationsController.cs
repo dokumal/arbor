@@ -21,7 +21,8 @@ public sealed class ViewConfigurationsController(AppDbContext db) : ControllerBa
             Name = request.Name.Trim(), Kind = request.Kind,
             SortOrder = (await db.ViewConfigurations.MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1,
             FiltersJson = JsonSerializer.Serialize(request.Filters),
-            VisibleFieldsJson = JsonSerializer.Serialize(request.VisibleFields.Distinct())
+            VisibleFieldsJson = JsonSerializer.Serialize(request.VisibleFields.Distinct()),
+            GroupByField = request.GroupByField
         };
         db.ViewConfigurations.Add(view);
         await db.SaveChangesAsync(cancellationToken);
@@ -39,6 +40,7 @@ public sealed class ViewConfigurationsController(AppDbContext db) : ControllerBa
         view.Kind = request.Kind;
         view.FiltersJson = JsonSerializer.Serialize(request.Filters);
         view.VisibleFieldsJson = JsonSerializer.Serialize(request.VisibleFields.Distinct());
+        view.GroupByField = request.GroupByField;
         await db.SaveChangesAsync(cancellationToken);
         return NoContent();
     }
@@ -66,6 +68,9 @@ public sealed class ViewConfigurationsController(AppDbContext db) : ControllerBa
         if (request.VisibleFields.Any(x => !fields.Contains(x)) ||
             request.Filters.Any(x => !fields.Contains(x.Field)))
             return "Ein ausgewähltes Feld existiert nicht.";
+        if (request.GroupByField is not null &&
+            (!fields.Contains(request.GroupByField) || request.Kind == ViewKind.Calendar))
+            return "Das Gruppierungsfeld ist für diese Darstellung ungültig.";
         var operators = new HashSet<string> { "equals", "notEquals", "contains", "isEmpty",
             "isNotEmpty", "before", "after", "greaterThan", "lessThan" };
         if (request.Filters.Any(x => !operators.Contains(x.Operator) || x.Value is null || x.Value.Length > 500))

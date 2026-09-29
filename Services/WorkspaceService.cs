@@ -31,7 +31,7 @@ public sealed class WorkspaceService(AppDbContext db)
                 Deserialize<List<string>>(x.OptionsJson), x.SortOrder)).ToList(),
             views.Select(x => new ViewConfigurationDto(x.Id, x.Name, x.Kind,
                 Deserialize<List<ViewFilter>>(x.FiltersJson),
-                Deserialize<List<string>>(x.VisibleFieldsJson), x.SortOrder)).ToList());
+                Deserialize<List<string>>(x.VisibleFieldsJson), x.GroupByField, x.SortOrder)).ToList());
     }
 
     public static T Deserialize<T>(string json) => JsonSerializer.Deserialize<T>(json,

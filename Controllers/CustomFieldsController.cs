@@ -45,6 +45,7 @@ public sealed class CustomFieldsController(AppDbContext db) : ControllerBase
             var filters = WorkspaceService.Deserialize<List<ViewFilter>>(view.FiltersJson);
             view.VisibleFieldsJson = JsonSerializer.Serialize(visible.Where(x => x != key));
             view.FiltersJson = JsonSerializer.Serialize(filters.Where(x => x.Field != key));
+            if (view.GroupByField == key) view.GroupByField = null;
         }
         db.CustomFields.Remove(field);
         await db.SaveChangesAsync(cancellationToken);

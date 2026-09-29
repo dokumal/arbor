@@ -28,8 +28,8 @@
 </div>
 
 <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
-<aside id="task-drawer" class="task-drawer" aria-labelledby="drawer-caption" aria-hidden="true" hidden>
-    <div class="drawer-header"><span id="drawer-caption">AUFGABE</span><button id="close-task-button" class="icon-button" aria-label="Schließen">✕</button></div>
+<aside id="task-drawer" class="task-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-caption" aria-hidden="true" hidden>
+    <div class="drawer-header"><div class="drawer-heading"><button type="button" id="task-display-toggle" class="icon-button task-display-toggle" title="Als Popup anzeigen" aria-label="Als Popup anzeigen"></button><span id="drawer-caption">AUFGABE</span></div><button id="close-task-button" class="icon-button" aria-label="Schließen">✕</button></div>
     <form id="task-form" class="drawer-form">
         <input type="hidden" id="task-id" />
         <div class="drawer-scroll">
@@ -57,6 +57,7 @@
         <div class="modal-body">
             <label class="form-label" for="config-name">Name</label><input id="config-name" maxlength="100" required placeholder="Zum Beispiel: Wichtige Aufgaben" />
             <label class="form-label" for="config-kind">Darstellung</label><select id="config-kind"><option value="Tree">Baum / Tabelle</option><option value="Kanban">Kanban</option><option value="Calendar">Kalender</option><option value="Timeline">Zeitachse</option></select>
+            <div id="grouping-settings"><label class="form-label" for="config-group-by">Gruppieren nach</label><select id="config-group-by"><option value="">Keine Gruppierung</option></select><p class="helper-text">Aufgaben mit gleichem Feldwert erscheinen in einer Gruppe.</p></div>
             <div class="section-heading"><h3>Angezeigte Felder</h3></div><p class="helper-text">Wähle die Informationen, die in dieser Ansicht sichtbar sind.</p><div id="visible-fields" class="checkbox-grid"></div>
             <div class="section-heading"><h3>Filter</h3><button type="button" id="add-filter-button" class="text-button">＋ Filter hinzufügen</button></div><p class="helper-text">Alle Filter müssen zutreffen.</p><div id="filter-rows" class="filter-rows"></div>
         </div>

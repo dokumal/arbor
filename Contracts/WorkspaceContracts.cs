@@ -14,7 +14,7 @@ public sealed record CustomFieldDto(Guid Id, string Name, CustomFieldType Type,
 public sealed record ViewFilter(string Field, string Operator, string Value);
 
 public sealed record ViewConfigurationDto(Guid Id, string Name, ViewKind Kind,
-    List<ViewFilter> Filters, List<string> VisibleFields, int SortOrder);
+    List<ViewFilter> Filters, List<string> VisibleFields, string? GroupByField, int SortOrder);
 
 public sealed record WorkspaceDto(List<TaskDto> Tasks, List<Guid> MatchingTaskIds,
     List<CustomFieldDto> CustomFields, List<ViewConfigurationDto> Views);
@@ -46,4 +46,5 @@ public sealed class ViewConfigurationSaveRequest
     public ViewKind Kind { get; set; }
     public List<ViewFilter> Filters { get; set; } = [];
     public List<string> VisibleFields { get; set; } = [];
+    public string? GroupByField { get; set; }
 }

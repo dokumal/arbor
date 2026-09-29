@@ -66,6 +66,17 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 .status-dot.Done::after{content:"✓"}
 .cell-muted{color:#7c8b84;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cell-pill{display:inline-flex;background:#eff5f1;border:1px solid #e3ede6;padding:4px 8px;border-radius:6px;color:#486657;font-size:11px;font-weight:600}
+.group-heading{width:100%;display:flex;align-items:center;gap:10px;border:0;border-bottom:1px solid #e4ece6;background:#f1f7f2;color:#315b40;text-align:left;padding:11px 15px;font-size:12px;font-weight:700}
+.group-heading:hover{background:#e8f3eb}
+.group-chevron{width:15px;color:#6b9478;text-align:center}
+.group-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.group-count{flex:none;border-radius:15px;background:#dcece1;color:#497354;padding:2px 7px;font-size:10px}
+.tree-group .group-heading{padding-left:27px}
+.kanban-groups{padding:20px 25px;display:grid;gap:18px}
+.kanban-group{border:1px solid #e1e9e3;border-radius:10px;overflow:hidden}
+.kanban-group .kanban-board{padding:13px}
+.kanban-board.single-status{grid-template-columns:minmax(240px,1fr)}
+.timeline-group-heading .group-heading{border-bottom:1px solid #e1e9e3}
 .kanban-board{display:grid;grid-template-columns:repeat(3,minmax(240px,1fr));gap:18px;padding:25px;align-items:start;overflow-x:auto}
 .kanban-column{border:1px solid #e4eae5;background:#f8faf8;border-radius:10px;min-height:220px}
 .kanban-column.drag-over{outline:2px dashed #0b9865;outline-offset:2px}
@@ -109,6 +120,10 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 .timeline-undated{color:#a5b1a8;font-size:11px;padding-left:9px}
 .drawer-backdrop{position:fixed;inset:0;background:#172d2466;z-index:20}
 .task-drawer{position:fixed;right:0;top:0;bottom:0;width:min(640px,100vw);background:#fff;z-index:21;box-shadow:-20px 0 50px #15251c2e;display:flex;flex-direction:column}
+.task-drawer.task-popup{left:50%;top:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);width:min(900px,calc(100vw - 32px));height:min(850px,calc(100dvh - 48px));border:1px solid #e0e8e3;border-radius:14px;box-shadow:0 24px 80px #15251c40;overflow:hidden}
+.drawer-heading{display:flex;align-items:center;gap:10px;min-width:0}
+.task-display-toggle{flex:none}
+.task-drawer .drawer-header,.task-drawer .drawer-footer{flex-shrink:0}
 .drawer-header{height:65px;border-bottom:1px solid #e8eee9;padding:0 28px;display:flex;align-items:center;justify-content:space-between;font-size:11px;letter-spacing:.14em;font-weight:750;color:#0a8a5e}
 .drawer-form{display:flex;flex-direction:column;min-height:0;flex:1}
 .drawer-scroll{overflow:auto;flex:1;padding:28px 36px}

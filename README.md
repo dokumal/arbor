@@ -35,6 +35,7 @@ Die Zugangsdaten der automatisch angelegten Datenbank werden lokal unter `.local
 - Eigene Felder vom Typ Text, Zahl, Datum, Auswahl und Ja/Nein
 - Gespeicherte Ansichten für Baum/Tabelle, Kanban, Kalender und Zeitachse
 - Pro Ansicht auswählbare sichtbare Felder und kombinierbare Filter, auch auf eigene Felder
+- Gespeicherte Gruppierung nach Standard- oder eigenem Feld für Baum/Tabelle, Kanban und Zeitachse; Gruppen lassen sich einzeln ein- und ausklappen
 - Statuswechsel im Kanban per Drag & Drop
 - SunEditor für Überschriften, Listen, Tabellen und Bilder in Aufgabenbeschreibungen. Bilder lassen sich auch aus der Zwischenablage einfügen und werden lokal unter `.local/images` gespeichert.
 

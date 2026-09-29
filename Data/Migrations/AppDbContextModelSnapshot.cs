@@ -129,6 +129,10 @@ namespace QuireClone.Data.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("GroupByField")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(16)
