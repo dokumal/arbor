@@ -32,6 +32,8 @@ Die Zugangsdaten der automatisch angelegten Datenbank werden lokal unter `.local
 
 - Aufgaben mit beliebig tiefen Unteraufgaben, Status, formatierter Beschreibung sowie Start- und Fälligkeitsdatum
 - Seitliches Detailfenster beim Öffnen einer Aufgabe
+- Wahlweise zentriertes Aufgaben-Popup oder Seitenpanel; Auswahl wird im Browser gespeichert
+- Drag & Drop in der Baum-/Listenansicht zum Umsortieren und Ändern der Elternbeziehung, mit Einfügemarkierung und Schutz vor Kreisbeziehungen
 - Eigene Felder vom Typ Text, Zahl, Datum, Auswahl und Ja/Nein
 - Gespeicherte Ansichten für Baum/Tabelle, Kanban, Kalender und Zeitachse
 - Pro Ansicht auswählbare sichtbare Felder und kombinierbare Filter, auch auf eigene Felder

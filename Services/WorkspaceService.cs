@@ -12,7 +12,7 @@ public sealed class WorkspaceService(AppDbContext db)
     public async Task<WorkspaceDto> GetAsync(Guid? viewId, CancellationToken cancellationToken)
     {
         var tasks = await db.Tasks.AsNoTracking().Include(x => x.FieldValues)
-            .OrderBy(x => x.SortOrder).ToListAsync(cancellationToken);
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToListAsync(cancellationToken);
         var fields = await db.CustomFields.AsNoTracking().OrderBy(x => x.SortOrder)
             .ToListAsync(cancellationToken);
         var views = await db.ViewConfigurations.AsNoTracking().OrderBy(x => x.SortOrder)

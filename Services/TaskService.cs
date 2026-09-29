@@ -75,6 +75,33 @@ public sealed class TaskService(AppDbContext db)
         return task;
     }
 
+    public async Task MoveAsync(Guid id, TaskMoveRequest request, CancellationToken cancellationToken)
+    {
+        var task = await db.Tasks.FindAsync([id], cancellationToken)
+            ?? throw new KeyNotFoundException("Aufgabe nicht gefunden.");
+        await ValidateParentAsync(id, request.ParentTaskId, cancellationToken);
+        var siblings = await db.Tasks.Where(x => x.ParentTaskId == request.ParentTaskId && x.Id != id)
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToListAsync(cancellationToken);
+        var position = request.BeforeTaskId is Guid beforeId
+            ? siblings.FindIndex(x => x.Id == beforeId) : siblings.Count;
+        if (position < 0)
+            throw new ArgumentException("Die Einfügeposition gehört nicht zur gewählten Ebene.");
+
+        var oldParent = task.ParentTaskId;
+        if (oldParent != request.ParentTaskId)
+        {
+            var oldSiblings = await db.Tasks.Where(x => x.ParentTaskId == oldParent && x.Id != id)
+                .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToListAsync(cancellationToken);
+            for (var i = 0; i < oldSiblings.Count; i++) oldSiblings[i].SortOrder = i;
+        }
+        task.ParentTaskId = request.ParentTaskId;
+        task.UpdatedAt = DateTimeOffset.UtcNow;
+        siblings.Insert(position, task);
+        for (var i = 0; i < siblings.Count; i++) siblings[i].SortOrder = i;
+        // EF saves the parent change and all sibling positions in one transaction.
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         var task = await db.Tasks.FindAsync([id], cancellationToken)

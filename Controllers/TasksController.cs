@@ -41,4 +41,17 @@ public sealed class TasksController(TaskService tasks) : ControllerBase
         }
         catch (KeyNotFoundException) { return NotFound(); }
     }
+
+    [HttpPost("{id:guid}/move")]
+    public async Task<IActionResult> Move(Guid id, TaskMoveRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await tasks.MoveAsync(id, request, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (ArgumentException exception) { return BadRequest(new { error = exception.Message }); }
+    }
+
 }

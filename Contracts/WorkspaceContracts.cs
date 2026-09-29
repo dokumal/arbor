@@ -31,6 +31,12 @@ public sealed class TaskSaveRequest
     public Dictionary<Guid, string?> Fields { get; set; } = [];
 }
 
+public sealed class TaskMoveRequest
+{
+    public Guid? ParentTaskId { get; set; }
+    public Guid? BeforeTaskId { get; set; }
+}
+
 public sealed class CustomFieldSaveRequest
 {
     [Required, StringLength(100, MinimumLength = 1)]

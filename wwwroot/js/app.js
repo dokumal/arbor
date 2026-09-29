@@ -2,6 +2,7 @@ import { api } from './api.js';
 import { escapeHtml, fieldLabel, kinds, renderView, statuses } from './render.js';
 import { getDescription, setDescription } from './description-editor.js';
 import { initializeTaskDisplay } from './task-display.js';
+import { initializeTreeDrag } from './tree-drag.js';
 
 const $ = id => document.getElementById(id);
 initializeTaskDisplay($('task-drawer'), $('task-display-toggle'));
@@ -22,6 +23,14 @@ let toastTimer;
 
 const currentView = () => workspace.views.find(view => view.id === ui.viewId && view.kind === ui.kind) || null;
 const taskById = id => workspace.tasks.find(task => task.id === id);
+initializeTreeDrag($('view-content'), () => workspace.tasks, async (id, move) => {
+    try {
+        await api(`/api/tasks/${id}/move`, { method: 'POST', body: JSON.stringify(move) });
+        if (move.parentTaskId) ui.expanded.add(move.parentTaskId);
+        await loadWorkspace();
+        notify('Aufgabe verschoben.');
+    } catch (error) { notify(error.message); }
+});
 
 async function loadWorkspace(preferredViewId = ui.viewId, preferredKind = ui.kind) {
     const query = preferredViewId ? `?viewId=${encodeURIComponent(preferredViewId)}` : '';
