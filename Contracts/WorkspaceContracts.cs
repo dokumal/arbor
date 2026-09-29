@@ -31,6 +31,12 @@ public sealed class TaskSaveRequest
     public Dictionary<Guid, string?> Fields { get; set; } = [];
 }
 
+public sealed class TaskDatesRequest
+{
+    public DateOnly? StartDate { get; set; }
+    public DateOnly? DueDate { get; set; }
+}
+
 public sealed class TaskMoveRequest
 {
     public Guid? ParentTaskId { get; set; }

@@ -1,20 +1,24 @@
 import { api } from './api.js';
-import { escapeHtml, fieldLabel, kinds, renderView, statuses } from './render.js';
+import { escapeHtml, fieldLabel, kinds, renderView, statuses } from './render.js?v=timeline-intervals-v1';
 import { getDescription, setDescription } from './description-editor.js';
 import { initializeTaskDisplay } from './task-display.js';
 import { initializeTreeDrag } from './tree-drag.js';
+import { initializeTimelineDrag } from './timeline-drag.js';
+import { timelineIntervals, shiftTimelineDate } from './timeline-range.js';
 
 const $ = id => document.getElementById(id);
 initializeTaskDisplay($('task-drawer'), $('task-display-toggle'));
 const now = new Date();
 const localMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-const monday = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+const savedTimelineInterval = localStorage.getItem('arbor-timeline-interval');
 const ui = {
     viewId: localStorage.getItem('arbor-view'), kind: localStorage.getItem('arbor-kind'),
     selectedTaskId: null,
     expanded: new Set(), seenTasks: new Set(), collapsedGroups: new Set(), month: localMonth,
-    timelineWeek: monday.toISOString().slice(0, 10), editingViewId: null
+    timelineDate: today.toISOString().slice(0, 10),
+    timelineInterval: Object.hasOwn(timelineIntervals, savedTimelineInterval) ? savedTimelineInterval : 'Month',
+    editingViewId: null
 };
 let workspace = { tasks: [], matchingTaskIds: [], customFields: [], views: [] };
 let dragTaskId = null;
@@ -31,6 +35,12 @@ initializeTreeDrag($('view-content'), () => workspace.tasks, async (id, move) =>
         notify('Aufgabe verschoben.');
     } catch (error) { notify(error.message); }
 });
+
+initializeTimelineDrag($('view-content'), taskById, async (id, dates) => {
+    await api(`/api/tasks/${id}/dates`, { method: 'PATCH', body: JSON.stringify(dates) });
+    await loadWorkspace();
+    notify('Zeitraum gespeichert.');
+}, error => notify(error.message));
 
 async function loadWorkspace(preferredViewId = ui.viewId, preferredKind = ui.kind) {
     const query = preferredViewId ? `?viewId=${encodeURIComponent(preferredViewId)}` : '';
@@ -291,10 +301,9 @@ function shiftMonth(amount) {
     ui.month = new Date(Date.UTC(year, month - 1 + amount, 1)).toISOString().slice(0, 7);
     render();
 }
-function shiftWeek(amount) {
-    const date = new Date(`${ui.timelineWeek}T00:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + amount * 28);
-    ui.timelineWeek = date.toISOString().slice(0, 10); render();
+function shiftTimeline(amount) {
+    ui.timelineDate = shiftTimelineDate(ui.timelineDate, ui.timelineInterval, amount);
+    render();
 }
 
 document.addEventListener('click', async event => {
@@ -315,8 +324,13 @@ document.addEventListener('click', async event => {
         }
         case 'calendar-prev': shiftMonth(-1); break;
         case 'calendar-next': shiftMonth(1); break;
-        case 'timeline-prev': shiftWeek(-1); break;
-        case 'timeline-next': shiftWeek(1); break;
+        case 'timeline-prev': shiftTimeline(-1); break;
+        case 'timeline-next': shiftTimeline(1); break;
+        case 'timeline-interval':
+            if (!Object.hasOwn(timelineIntervals, action.dataset.interval)) break;
+            ui.timelineInterval = action.dataset.interval;
+            localStorage.setItem('arbor-timeline-interval', ui.timelineInterval);
+            render(); break;
         case 'remove-filter': action.closest('.filter-row').remove(); break;
         case 'delete-field': await deleteField(action.dataset.id); break;
     }

@@ -1,3 +1,5 @@
+import { getTimelineRange, timelineIntervals } from './timeline-range.js';
+
 export const kinds = {
     Tree: { label: 'Baum', icon: '☷', description: 'Hierarchisch und übersichtlich' },
     Kanban: { label: 'Kanban', icon: '▥', description: 'Aufgaben nach Status organisiert' },
@@ -79,11 +81,11 @@ export function renderView(data, view, ui) {
     if (!view) return empty();
     const matching = new Set(data.matchingTaskIds);
     const tasks = data.tasks.filter(task => matching.has(task.id));
-    if (!tasks.length) return empty(view.filters.length > 0);
+    if (!tasks.length && view.kind !== 'Timeline') return empty(view.filters.length > 0);
     switch (view.kind) {
         case 'Kanban': return renderKanban(tasks, view, data.customFields, ui.collapsedGroups);
         case 'Calendar': return renderCalendar(tasks, view, data.customFields, ui.month);
-        case 'Timeline': return renderTimeline(tasks, view, data.customFields, ui.timelineWeek, ui.collapsedGroups);
+        case 'Timeline': return renderTimeline(tasks, view, data.customFields, ui.timelineDate, ui.timelineInterval, ui.collapsedGroups);
         default: return renderTree(data.tasks, matching, view, data.customFields, ui.expanded, ui.selectedTaskId, ui.collapsedGroups);
     }
 }
@@ -199,27 +201,27 @@ function renderCalendar(tasks, view, definitions, monthValue) {
     return `<div class="calendar-wrap"><div class="date-nav"><strong>${new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(first)}</strong><button data-action="calendar-prev" aria-label="Vorheriger Monat">‹</button><button data-action="calendar-next" aria-label="Nächster Monat">›</button></div><div class="calendar-grid"><div class="calendar-weekday-row">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(day => `<div class="weekday">${day}</div>`).join('')}</div>${weeks}</div>${unscheduled.length ? `<div class="unscheduled"><strong>Ohne Datum</strong>${unscheduled.map(task => `<button data-action="open-task" data-id="${task.id}">${escapeHtml(task.title)}</button>`).join('')}</div>` : ''}</div>`;
 }
 
-function renderTimeline(tasks, view, definitions, weekValue, collapsed) {
-    const start = new Date(`${weekValue}T00:00:00Z`);
-    const end = new Date(start); end.setUTCDate(end.getUTCDate() + 56);
-    const weeks = Array.from({ length: 8 }, (_, index) => {
-        const day = new Date(start); day.setUTCDate(day.getUTCDate() + index * 7);
-        return `<span>${formatDate(day.toISOString().slice(0, 10), { day: '2-digit', month: 'short' })}</span>`;
-    });
+function renderTimeline(tasks, view, definitions, anchor, interval, collapsed) {
+    const range = getTimelineRange(anchor, interval);
+    const start = new Date(`${range.start}T00:00:00Z`);
+    const end = new Date(`${range.end}T00:00:00Z`);
+    const headings = range.columns.map(column => `<span>${escapeHtml(column.label)}</span>`).join('');
     const renderRows = items => items.map(task => {
         const taskStart = task.startDate ? new Date(`${task.startDate}T00:00:00Z`) : task.dueDate ? new Date(`${task.dueDate}T00:00:00Z`) : null;
         const taskEnd = task.dueDate ? new Date(`${task.dueDate}T00:00:00Z`) : taskStart;
         let bar = '<span class="timeline-undated">Kein Datum</span>';
         if (taskStart && taskEnd) {
             const left = Math.max(0, (taskStart - start) / 86400000);
-            const right = Math.min(56, (taskEnd - start) / 86400000 + 1);
-            bar = right > left ? `<button class="timeline-bar ${task.status}" style="left:${left / 56 * 100}%;width:${Math.max((right - left) / 56 * 100, 1.5)}%" data-action="open-task" data-id="${task.id}" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</button>` : '';
+            const right = Math.min(range.days, (taskEnd - start) / 86400000 + 1);
+            const tooltip = escapeHtml(`${task.title} · ${formatDate(task.startDate || task.dueDate)} – ${formatDate(task.dueDate || task.startDate)}`);
+            bar = right > left ? `<div class="timeline-bar ${task.status}" style="left:${left / range.days * 100}%;width:${Math.max((right - left) / range.days * 100, 1.5)}%" data-id="${task.id}" title="${tooltip}">${taskStart >= start ? '<button type="button" class="timeline-resize start" data-edge="start" title="Startdatum ändern" aria-label="Startdatum ändern"></button>' : ''}<button type="button" class="timeline-body" data-action="open-task" data-id="${task.id}">${escapeHtml(task.title)}</button>${taskEnd < end ? '<button type="button" class="timeline-resize end" data-edge="end" title="Enddatum ändern" aria-label="Enddatum ändern"></button>' : ''}</div>` : '';
         }
         const extras = view.visibleFields.filter(key => key !== 'title').map(key => fieldValue(task, key, definitions)).filter(Boolean);
         return `<div class="timeline-row"><div class="timeline-label" data-action="open-task" data-id="${task.id}" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}${extras.length ? `<span class="cell-muted"> · ${escapeHtml(extras.join(', '))}</span>` : ''}</div><div class="timeline-track">${bar}</div></div>`;
     }).join('');
     const groups = groupTasks(tasks, view, definitions);
-    const body = groups ? groups.map(group => `<div class="timeline-group-heading">${groupHeading(view, group, collapsed)}</div>${groupIsCollapsed(view, group, collapsed) ? '' : renderRows(group.tasks)}`).join('') : renderRows(tasks);
+    const body = !tasks.length ? empty(view.filters.length > 0) : groups ? groups.map(group => `<div class="timeline-group-heading">${groupHeading(view, group, collapsed)}</div>${groupIsCollapsed(view, group, collapsed) ? '' : renderRows(group.tasks)}`).join('') : renderRows(tasks);
     const endLabel = new Date(end); endLabel.setUTCDate(endLabel.getUTCDate() - 1);
-    return `<div class="timeline-wrap"><div class="date-nav"><strong>${formatDate(weekValue)} – ${formatDate(endLabel.toISOString().slice(0, 10))}</strong><button data-action="timeline-prev" aria-label="Vorherige Wochen">‹</button><button data-action="timeline-next" aria-label="Nächste Wochen">›</button></div><div class="timeline-grid"><div class="timeline-heading"><span>Aufgabe</span><div class="timeline-weeks">${weeks.join('')}</div></div>${body}</div></div>`;
+    const intervalButtons = Object.entries(timelineIntervals).map(([key, label]) => `<button type="button" class="timeline-interval-button ${key === interval ? 'active' : ''}" data-action="timeline-interval" data-interval="${key}" aria-pressed="${key === interval}">${label}</button>`).join('');
+    return `<div class="timeline-wrap" data-start="${range.start}" data-days="${range.days}"><div class="date-nav timeline-nav"><strong>${formatDate(range.start)} – ${formatDate(endLabel.toISOString().slice(0, 10))}</strong><button data-action="timeline-prev" aria-label="Vorheriger Zeitraum">‹</button><button data-action="timeline-next" aria-label="Nächster Zeitraum">›</button><div class="timeline-intervals" role="group" aria-label="Zeitintervall">${intervalButtons}</div></div><div class="timeline-grid" style="--timeline-columns:${range.columns.map(column => `${column.days}fr`).join(' ')};--tick-width:${100 / range.days * (interval === 'ThreeMonths' ? 7 : 1)}%"><div class="timeline-heading"><span>Aufgabe</span><div class="timeline-weeks ${interval === 'Month' ? 'timeline-day-headings' : ''}">${headings}</div></div>${body}</div></div>`;
 }

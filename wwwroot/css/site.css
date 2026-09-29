@@ -120,13 +120,29 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 .timeline-row{height:55px}
 .timeline-label{padding-right:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;cursor:pointer}
 .timeline-label:hover{color:#078659}
-.timeline-weeks,.timeline-track{position:relative;display:grid;grid-template-columns:repeat(8,1fr);height:100%}
+.timeline-weeks,.timeline-track{position:relative;display:grid;grid-template-columns:var(--timeline-columns);height:100%}
 .timeline-weeks span{border-left:1px solid #e6eee7;padding:12px 8px}
-.timeline-track{background:repeating-linear-gradient(to right,transparent 0,transparent calc(12.5% - 1px),#e9efe9 calc(12.5% - 1px),#e9efe9 12.5%)}
+.timeline-track{background:repeating-linear-gradient(to right,transparent 0,transparent calc(var(--tick-width) - 1px),#e9efe9 calc(var(--tick-width) - 1px),#e9efe9 var(--tick-width))}
+.timeline-nav{flex-wrap:wrap}
+.timeline-intervals{display:flex;gap:3px;margin-left:auto;padding:3px;background:#f1f6f2;border:1px solid #e1e9e3;border-radius:9px}
+.date-nav .timeline-interval-button{width:auto;padding:0 12px;border:0;background:transparent;font-size:12px;white-space:nowrap}
+.date-nav .timeline-interval-button.active{background:#fff;color:#087b53;box-shadow:0 1px 4px #183b2a15;font-weight:650}
+.timeline-day-headings span{padding-left:0;padding-right:0;text-align:center;font-size:10px;letter-spacing:0}
 .timeline-bar{position:absolute;top:14px;height:27px;border:0;border-radius:5px;background:#58b884;color:white;font-size:11px;font-weight:650;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 8px;text-align:left;min-width:9px}
 .timeline-bar.Done{background:#7bafa0}
 .timeline-bar.Todo{background:#8aaac0}
 .timeline-bar:hover{filter:brightness(.93)}
+.timeline-bar{padding:0;min-width:14px;display:flex;touch-action:none;user-select:none}
+.timeline-body{border:0;background:transparent;color:inherit;font:inherit;min-width:0;width:100%;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;cursor:grab;touch-action:none}
+.timeline-resize{position:absolute;top:0;bottom:0;width:6px;border:0;background:#ffffff30;padding:0;cursor:ew-resize;touch-action:none;z-index:1}
+.timeline-resize.start{left:0}
+.timeline-resize.end{right:0}
+.timeline-resize::after{content:"";position:absolute;top:8px;bottom:8px;left:2px;width:2px;border-radius:2px;background:#ffffffb0}
+.timeline-resize:hover,.timeline-resize:focus-visible{background:#ffffff60}
+.timeline-editing{z-index:3;box-shadow:0 0 0 2px #096d48;filter:brightness(1.05)}
+.timeline-editing .timeline-body{cursor:grabbing}
+.timeline-saving{opacity:.65}
+.timeline-date-preview{position:fixed;z-index:50;pointer-events:none;max-width:315px;background:#183b2a;color:white;padding:8px 11px;border-radius:7px;font-size:12px;box-shadow:0 4px 18px #183b2a40}
 .timeline-undated{color:#a5b1a8;font-size:11px;padding-left:9px}
 .drawer-backdrop{position:fixed;inset:0;background:#172d2466;z-index:20}
 .task-drawer{position:fixed;right:0;top:0;bottom:0;width:min(640px,100vw);background:#fff;z-index:21;box-shadow:-20px 0 50px #15251c2e;display:flex;flex-direction:column}

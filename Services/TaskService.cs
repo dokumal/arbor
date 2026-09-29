@@ -75,6 +75,20 @@ public sealed class TaskService(AppDbContext db)
         return task;
     }
 
+    public async Task UpdateDatesAsync(Guid id, TaskDatesRequest request, CancellationToken cancellationToken)
+    {
+        if (request.StartDate is null && request.DueDate is null)
+            throw new ArgumentException("Für den Zeitraum ist mindestens ein Datum erforderlich.");
+        if (request.StartDate > request.DueDate)
+            throw new ArgumentException("Das Startdatum darf nicht nach dem Fälligkeitsdatum liegen.");
+        var task = await db.Tasks.FindAsync([id], cancellationToken)
+            ?? throw new KeyNotFoundException("Aufgabe nicht gefunden.");
+        task.StartDate = request.StartDate;
+        task.DueDate = request.DueDate;
+        task.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task MoveAsync(Guid id, TaskMoveRequest request, CancellationToken cancellationToken)
     {
         var task = await db.Tasks.FindAsync([id], cancellationToken)
