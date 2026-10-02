@@ -1,10 +1,12 @@
 import { api } from './api.js';
-import { escapeHtml, fieldLabel, kinds, renderView, statuses } from './render.js?v=timeline-intervals-v1';
+import { escapeHtml, fieldLabel, kinds, renderView, statuses, descriptionText } from './render.js?v=folders';
 import { getDescription, setDescription } from './description-editor.js';
 import { initializeTaskDisplay } from './task-display.js';
-import { initializeTreeDrag } from './tree-drag.js';
+import { initializeTreeDrag } from './tree-drag.js?v=folders';
 import { initializeTimelineDrag } from './timeline-drag.js';
 import { timelineIntervals, shiftTimelineDate } from './timeline-range.js';
+import { isDocument, isFolder, isTask, canContain, itemIcon, itemKinds } from './item-relations.js?v=folders';
+import { initializeItemLinks } from './item-links.js?v=folders';
 
 const $ = id => document.getElementById(id);
 initializeTaskDisplay($('task-drawer'), $('task-display-toggle'));
@@ -18,26 +20,27 @@ const ui = {
     expanded: new Set(), seenTasks: new Set(), collapsedGroups: new Set(), month: localMonth,
     timelineDate: today.toISOString().slice(0, 10),
     timelineInterval: Object.hasOwn(timelineIntervals, savedTimelineInterval) ? savedTimelineInterval : 'Month',
-    editingViewId: null
+    editingViewId: null, search: ''
 };
-let workspace = { tasks: [], matchingTaskIds: [], customFields: [], views: [] };
+let workspace = { items: [], matchingItemIds: [], customFields: [], views: [], links: [] };
 let dragTaskId = null;
 let dragGroupKey = null;
 let toastTimer;
 
 const currentView = () => workspace.views.find(view => view.id === ui.viewId && view.kind === ui.kind) || null;
-const taskById = id => workspace.tasks.find(task => task.id === id);
-initializeTreeDrag($('view-content'), () => workspace.tasks, async (id, move) => {
+const taskById = id => workspace.items.find(task => task.id === id);
+const itemLinks = initializeItemLinks(() => workspace, () => loadWorkspace(), notify);
+initializeTreeDrag($('view-content'), () => workspace.items, async (id, move) => {
     try {
-        await api(`/api/tasks/${id}/move`, { method: 'POST', body: JSON.stringify(move) });
-        if (move.parentTaskId) ui.expanded.add(move.parentTaskId);
+        await api(`/api/items/${id}/move`, { method: 'POST', body: JSON.stringify(move) });
+        if (move.parentId) ui.expanded.add(move.parentId);
         await loadWorkspace();
-        notify('Aufgabe verschoben.');
+        notify('Eintrag verschoben.');
     } catch (error) { notify(error.message); }
 });
 
 initializeTimelineDrag($('view-content'), taskById, async (id, dates) => {
-    await api(`/api/tasks/${id}/dates`, { method: 'PATCH', body: JSON.stringify(dates) });
+    await api(`/api/items/${id}/dates`, { method: 'PATCH', body: JSON.stringify(dates) });
     await loadWorkspace();
     notify('Zeitraum gespeichert.');
 }, error => notify(error.message));
@@ -59,7 +62,7 @@ async function loadWorkspace(preferredViewId = ui.viewId, preferredKind = ui.kin
         localStorage.setItem('arbor-view', ui.viewId);
         localStorage.setItem(`arbor-view-${ui.kind}`, ui.viewId);
     } else localStorage.removeItem('arbor-view');
-    workspace.tasks.forEach(task => {
+    workspace.items.forEach(task => {
         if (!ui.seenTasks.has(task.id)) {
             ui.expanded.add(task.id);
             ui.seenTasks.add(task.id);
@@ -70,7 +73,10 @@ async function loadWorkspace(preferredViewId = ui.viewId, preferredKind = ui.kin
 
 function render() {
     const view = currentView();
-    $('task-count').textContent = `${workspace.tasks.length} ${workspace.tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'}`;
+    const documents = workspace.items.filter(isDocument).length;
+    const tasks = workspace.items.filter(isTask).length;
+    const folders = workspace.items.filter(isFolder).length;
+    $('task-count').textContent = `${tasks} ${tasks === 1 ? 'Aufgabe' : 'Aufgaben'} · ${documents} ${documents === 1 ? 'Dokument' : 'Dokumente'} · ${folders} Ordner`;
     $('view-tabs').innerHTML = Object.entries(kinds).map(([kind, details]) =>
         `<button class="view-tab ${kind === ui.kind ? 'active' : ''}" data-action="select-kind" data-kind="${kind}" role="tab" aria-selected="${kind === ui.kind}"><span class="tab-symbol">${details.icon}</span>${escapeHtml(details.label)}</button>`).join('');
     $('config-tabs').innerHTML = workspace.views.filter(item => item.kind === ui.kind).map(item =>
@@ -80,7 +86,14 @@ function render() {
     $('view-description').textContent = kinds[ui.kind]?.description || '';
     $('filter-summary').textContent = view?.filters.length ? `${view.filters.length} Filter aktiv` : '';
     $('edit-view-button').hidden = !view;
-    $('view-content').innerHTML = view ? renderView(workspace, view, ui)
+    const query = ui.search.trim().toLocaleLowerCase('de');
+    const terms = query.split(/\s+/).filter(Boolean);
+    const matchesSearch = item => {
+        const text = [item.title, descriptionText(item.description), ...Object.values(item.fields)].join(' ').toLocaleLowerCase('de');
+        return terms.every(term => text.includes(term));
+    };
+    const data = { ...workspace, searchQuery: query, matchingItemIds: workspace.matchingItemIds.filter(id => matchesSearch(taskById(id))) };
+    $('view-content').innerHTML = view ? renderView(data, view, ui)
         : `<div class="empty-state"><h3>Keine Konfiguration für ${escapeHtml(kinds[ui.kind]?.label || 'diese Sicht')}</h3><p>Erstelle eine Konfiguration mit deinen gewünschten Filtern und Feldern.</p><button class="primary-button" data-action="new-view">＋ Konfiguration erstellen</button></div>`;
 }
 
@@ -98,8 +111,8 @@ function descendantsOf(id) {
     let changed = true;
     while (changed) {
         changed = false;
-        workspace.tasks.forEach(task => {
-            if (result.has(task.parentTaskId) && !result.has(task.id)) {
+        workspace.items.forEach(task => {
+            if (result.has(task.parentId) && !result.has(task.id)) {
                 result.add(task.id); changed = true;
             }
         });
@@ -123,6 +136,7 @@ function drawerFieldValues() {
 function refreshDrawerFields(values) {
     if ($('task-drawer').hidden) return;
     const task = taskById($('task-id').value);
+    if (isFolder(task) || $('item-kind').value === 'Folder') return;
     $('task-custom-fields').innerHTML = workspace.customFields.map(field =>
         customInput(field, values[field.id] ?? task?.fields[field.id])).join('') ||
         '<p class="helper-text">Noch keine eigenen Felder.</p>';
@@ -130,22 +144,35 @@ function refreshDrawerFields(values) {
 
 function openTask(id = null, options = {}) {
     const task = id ? taskById(id) : null;
+    const kind = task?.kind || options.kind || 'Task';
+    const document = kind === 'Document';
+    const folder = kind === 'Folder';
     $('task-form').reset();
     $('task-form-error').textContent = '';
     $('task-id').value = task?.id || '';
-    $('drawer-caption').textContent = task ? 'AUFGABE BEARBEITEN' : 'NEUE AUFGABE';
+    $('item-kind').value = kind;
+    const captions = { Task: ['NEUE AUFGABE', 'AUFGABE BEARBEITEN'], Document: ['NEUES DOKUMENT', 'DOKUMENT BEARBEITEN'], Folder: ['NEUER ORDNER', 'ORDNER BEARBEITEN'] };
+    $('drawer-caption').textContent = captions[kind][task ? 1 : 0];
+    $('item-content-label').textContent = document ? 'Inhalt' : 'Beschreibung';
+    $('task-title').placeholder = folder ? 'Titel des Ordners' : document ? 'Titel des Dokuments' : 'Was steht an?';
+    ['item-status-field', 'item-start-field', 'item-due-field'].forEach(field => $(field).hidden = kind !== 'Task');
+    $('item-custom-fields-section').hidden = folder;
+    $('task-drawer').classList.toggle('document-editor', document);
+    $('task-drawer').classList.toggle('folder-editor', folder);
     $('task-title').value = task?.title || '';
     $('task-status').value = task?.status || options.status || 'Todo';
     $('task-start').value = task?.startDate || '';
     $('task-due').value = task?.dueDate || '';
     const excluded = task ? descendantsOf(task.id) : new Set();
-    $('task-parent').innerHTML = '<option value="">Keine</option>' + workspace.tasks.filter(item => !excluded.has(item.id)).map(item => `<option value="${item.id}">${escapeHtml(item.title)}</option>`).join('');
-    $('task-parent').value = task?.parentTaskId || options.parentTaskId || '';
-    $('task-custom-fields').innerHTML = workspace.customFields.map(field => customInput(field, task?.fields[field.id])).join('') || '<p class="helper-text">Noch keine eigenen Felder.</p>';
+    $('task-parent').innerHTML = '<option value="">Keine</option>' + workspace.items.filter(item => !excluded.has(item.id) && canContain(item.kind, kind)).map(item => `<option value="${item.id}">${itemIcon(item)} ${escapeHtml(item.title)}</option>`).join('');
+    $('task-parent').value = task?.parentId || options.parentId || '';
+    $('task-custom-fields').innerHTML = folder ? '' : workspace.customFields.map(field => customInput(field, task?.fields[field.id])).join('') || '<p class="helper-text">Noch keine eigenen Felder.</p>';
     $('delete-task-button').hidden = !task;
-    const children = task ? workspace.tasks.filter(item => item.parentTaskId === task.id) : [];
+    const children = task ? workspace.items.filter(item => item.parentId === task.id) : [];
     $('task-children-section').hidden = !task;
-    $('task-children').innerHTML = children.map(child => `<button type="button" class="child-link" data-action="open-task" data-id="${child.id}">↳ ${escapeHtml(child.title)}</button>`).join('') || '<p class="helper-text">Noch keine Unteraufgaben.</p>';
+    $('add-child-folder-button').hidden = !folder;
+    $('task-children').innerHTML = children.map(child => `<button type="button" class="child-link" data-action="open-task" data-id="${child.id}">${itemIcon(child)} ${escapeHtml(child.title)}${isTask(child) ? `<span class="related-status">${escapeHtml(statuses[child.status])}</span>` : ''}</button>`).join('') || '<p class="helper-text">Noch keine untergeordneten Einträge.</p>';
+    itemLinks.render(task?.id || null);
     ui.selectedTaskId = task?.id || null;
     $('drawer-backdrop').hidden = false;
     $('task-drawer').hidden = false;
@@ -167,29 +194,34 @@ async function saveTask(event) {
     event.preventDefault();
     $('task-form-error').textContent = '';
     const id = $('task-id').value;
+    const kind = $('item-kind').value;
     const fields = {};
     $('task-custom-fields').querySelectorAll('[data-field-id]').forEach(input => fields[input.dataset.fieldId] = input.value || null);
     const payload = {
+        kind,
         title: $('task-title').value.trim(), description: getDescription(),
-        parentTaskId: $('task-parent').value || null, status: $('task-status').value,
-        startDate: $('task-start').value || null, dueDate: $('task-due').value || null, fields
+        parentId: $('task-parent').value || null, status: kind === 'Task' ? $('task-status').value : 'Todo',
+        startDate: kind === 'Task' ? $('task-start').value || null : null,
+        dueDate: kind === 'Task' ? $('task-due').value || null : null, fields
     };
     try {
-        await api(id ? `/api/tasks/${id}` : '/api/tasks', { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
-        closeTask(); await loadWorkspace(); notify(id ? 'Aufgabe gespeichert.' : 'Aufgabe erstellt.');
+        await api(id ? `/api/items/${id}` : '/api/items', { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
+        closeTask();
+        await loadWorkspace(kind !== 'Task' && ui.kind !== 'Tree' ? null : ui.viewId, kind !== 'Task' ? 'Tree' : ui.kind);
+        notify(`${itemKinds[kind]} ${id ? 'gespeichert' : 'erstellt'}.`);
     } catch (error) { showError('task-form-error', error); }
 }
 
 async function deleteTask() {
     const id = $('task-id').value;
-    if (!id || !confirm('Diese Aufgabe und ihre Unteraufgaben wirklich löschen?')) return;
-    try { await api(`/api/tasks/${id}`, { method: 'DELETE' }); closeTask(); await loadWorkspace(); notify('Aufgabe gelöscht.'); }
+    if (!id || !confirm('Diesen Eintrag samt allen untergeordneten Ordnern, Aufgaben und Dokumenten wirklich löschen?')) return;
+    try { await api(`/api/items/${id}`, { method: 'DELETE' }); closeTask(); await loadWorkspace(); notify('Eintrag gelöscht.'); }
     catch (error) { showError('task-form-error', error); }
 }
 
 const builtinFields = [
-    ['title', 'Aufgabe'], ['status', 'Status'], ['startDate', 'Startdatum'],
-    ['dueDate', 'Fälligkeitsdatum'], ['description', 'Beschreibung']
+    ['title', 'Eintrag'], ['kind', 'Typ'], ['status', 'Status'], ['startDate', 'Startdatum'],
+    ['dueDate', 'Fälligkeitsdatum'], ['description', 'Inhalt']
 ];
 function allFieldChoices() { return [...builtinFields, ...workspace.customFields.map(field => [`field:${field.id}`, field.name])]; }
 
@@ -202,7 +234,7 @@ function updateGroupingSettings() {
 
 function filterValueControl(fieldKey, value = '') {
     const field = workspace.customFields.find(item => fieldKey === `field:${item.id}`);
-    const choices = fieldKey === 'status' ? Object.entries(statuses) :
+    const choices = fieldKey === 'kind' ? Object.entries(itemKinds) : fieldKey === 'status' ? Object.entries(statuses) :
         field?.type === 'Select' ? field.options.map(option => [option, option]) :
         field?.type === 'Boolean' ? [['true', 'Ja'], ['false', 'Nein']] : null;
     if (choices) return `<select class="filter-value" aria-label="Filterwert"><option value="">Wert wählen</option>${choices.map(([key, label]) => `<option value="${escapeHtml(key)}" ${value === key ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select>`;
@@ -314,7 +346,9 @@ document.addEventListener('click', async event => {
         case 'select-view': await loadWorkspace(action.dataset.id, ui.kind); break;
         case 'edit-view': openViewDialog(action.dataset.id); break;
         case 'new-view': openViewDialog(); break;
-        case 'new-task': openTask(null, { status: action.dataset.status }); break;
+        case 'new-task': openTask(null, { status: action.dataset.status, parentId: action.dataset.parentId }); break;
+        case 'new-document': openTask(null, { kind: 'Document', parentId: action.dataset.parentId }); break;
+        case 'new-folder': openTask(null, { kind: 'Folder', parentId: action.dataset.parentId }); break;
         case 'open-task': openTask(action.dataset.id); break;
         case 'toggle': event.stopPropagation(); ui.expanded.has(action.dataset.id) ? ui.expanded.delete(action.dataset.id) : ui.expanded.add(action.dataset.id); render(); break;
         case 'toggle-group': {
@@ -366,18 +400,23 @@ document.addEventListener('drop', async event => {
     dragTaskId = null; dragGroupKey = null;
     if (!task || task.status === column.dataset.status) return;
     try {
-        await api(`/api/tasks/${task.id}`, { method: 'PUT', body: JSON.stringify({ ...task, status: column.dataset.status }) });
+        await api(`/api/items/${task.id}`, { method: 'PUT', body: JSON.stringify({ ...task, status: column.dataset.status }) });
         await loadWorkspace(); notify('Status geändert.');
     } catch (error) { notify(error.message); }
 });
 
 $('new-task-button').addEventListener('click', () => openTask());
+$('new-folder-button').addEventListener('click', () => openTask(null, { kind: 'Folder' }));
+$('new-document-button').addEventListener('click', () => openTask(null, { kind: 'Document' }));
+$('workspace-search').addEventListener('input', event => { ui.search = event.target.value; render(); });
 $('config-kind').addEventListener('change', updateGroupingSettings);
 $('close-task-button').addEventListener('click', closeTask);
 $('drawer-backdrop').addEventListener('click', closeTask);
 $('task-form').addEventListener('submit', saveTask);
 $('delete-task-button').addEventListener('click', deleteTask);
-$('add-child-button').addEventListener('click', () => openTask(null, { parentTaskId: $('task-id').value }));
+$('add-child-button').addEventListener('click', () => openTask(null, { parentId: $('task-id').value }));
+$('add-child-document-button').addEventListener('click', () => openTask(null, { kind: 'Document', parentId: $('task-id').value }));
+$('add-child-folder-button').addEventListener('click', () => openTask(null, { kind: 'Folder', parentId: $('task-id').value }));
 $('field-manager-button').addEventListener('click', openFieldDialog);
 $('drawer-add-field').addEventListener('click', openFieldDialog);
 $('add-view-button').addEventListener('click', () => openViewDialog());

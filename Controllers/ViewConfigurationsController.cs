@@ -64,7 +64,7 @@ public sealed class ViewConfigurationsController(AppDbContext db) : ControllerBa
         if (request.Filters.Count > 20) return "Maximal 20 Filter pro Ansicht.";
         var fields = (await db.CustomFields.Select(x => x.Id).ToListAsync(cancellationToken))
             .Select(x => $"field:{x}").ToHashSet();
-        fields.UnionWith(["title", "description", "status", "startDate", "dueDate"]);
+        fields.UnionWith(["title", "description", "kind", "status", "startDate", "dueDate"]);
         if (request.VisibleFields.Any(x => !fields.Contains(x)) ||
             request.Filters.Any(x => !fields.Contains(x.Field)))
             return "Ein ausgewähltes Feld existiert nicht.";

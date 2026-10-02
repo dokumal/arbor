@@ -5,26 +5,26 @@ using QuireClone.Services;
 namespace QuireClone.Controllers;
 
 [ApiController]
-[Route("api/tasks")]
-public sealed class TasksController(TaskService tasks) : ControllerBase
+[Route("api/items")]
+public sealed class WorkspaceItemsController(WorkspaceItemService items) : ControllerBase
 {
     [HttpPost]
-    public async Task<IActionResult> Create(TaskSaveRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(ItemSaveRequest request, CancellationToken cancellationToken)
     {
         try
         {
-            var task = await tasks.SaveAsync(null, request, cancellationToken);
-            return Created($"/api/tasks/{task.Id}", new { task.Id });
+            var item = await items.SaveAsync(null, request, cancellationToken);
+            return Created($"/api/items/{item.Id}", new { item.Id });
         }
         catch (ArgumentException exception) { return BadRequest(new { error = exception.Message }); }
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, TaskSaveRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update(Guid id, ItemSaveRequest request, CancellationToken cancellationToken)
     {
         try
         {
-            await tasks.SaveAsync(id, request, cancellationToken);
+            await items.SaveAsync(id, request, cancellationToken);
             return NoContent();
         }
         catch (KeyNotFoundException) { return NotFound(); }
@@ -36,7 +36,7 @@ public sealed class TasksController(TaskService tasks) : ControllerBase
     {
         try
         {
-            await tasks.DeleteAsync(id, cancellationToken);
+            await items.DeleteAsync(id, cancellationToken);
             return NoContent();
         }
         catch (KeyNotFoundException) { return NotFound(); }
@@ -47,7 +47,7 @@ public sealed class TasksController(TaskService tasks) : ControllerBase
     {
         try
         {
-            await tasks.UpdateDatesAsync(id, request, cancellationToken);
+            await items.UpdateDatesAsync(id, request, cancellationToken);
             return NoContent();
         }
         catch (KeyNotFoundException) { return NotFound(); }
@@ -59,7 +59,7 @@ public sealed class TasksController(TaskService tasks) : ControllerBase
     {
         try
         {
-            await tasks.MoveAsync(id, request, cancellationToken);
+            await items.MoveAsync(id, request, cancellationToken);
             return NoContent();
         }
         catch (KeyNotFoundException) { return NotFound(); }

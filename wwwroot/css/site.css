@@ -235,6 +235,36 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 
 .card-description{font-size:11px;line-height:1.5;color:#809087;margin:9px 0 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
+/* Shared workspace: documents use the same tree and detail panel as tasks. */
+.workspace-search{display:flex;align-items:center;gap:12px;padding:14px 28px;border-bottom:1px solid #e9eeeb}
+.workspace-search label{font-size:24px;color:#78988b}
+.workspace-search input{border:0;background:transparent;width:100%;min-width:0;font-size:13px;color:#334d40;min-height:30px}
+.workspace-search input::placeholder{color:#8a9a91}
+.document-symbol{flex:none;font-size:15px;width:16px;text-align:center}
+.folder-symbol{flex:none;font-size:16px;width:16px;text-align:center}
+.folder-row .tree-title-text{font-weight:650;color:#596444}
+.folder-editor .field-grid{grid-template-columns:1fr}
+.document-row .tree-title-text{color:#45645c}
+.empty-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:10px}
+.document-refs{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px;border-top:1px solid #eaf0ec;padding-top:10px}
+.document-ref{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #dce8e2;border-radius:5px;background:#f5faf7;color:#527666;padding:4px 7px;font-size:11px;text-align:left}
+.document-ref:hover{background:#e6f3ec;color:#087b53}
+.related-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #edf2ef}
+.related-item-open{display:flex;align-items:center;gap:8px;flex:1;min-width:0;border:0;background:transparent;text-align:left;padding:10px 5px;color:#3e5344;font-size:12px;border-radius:5px}
+.related-item-open:hover{background:#eef7f1}
+.related-item-open strong{flex:1;min-width:0;font-weight:550;overflow-wrap:anywhere}
+.related-status{flex:none;font-size:10px;color:#658572;background:#eaf3ed;border-radius:4px;padding:3px 5px;margin-left:8px}
+.relation-source{flex:none;font-size:10px;color:#8a9a91}
+.unlink-item{flex:none;width:28px;height:28px;font-size:17px}
+.item-link-picker{display:flex;gap:8px;margin:14px 0 8px}
+.item-link-picker select{flex:1;min-width:0}
+.item-link-picker button{font-size:12px}
+.document-editor .field-grid{grid-template-columns:1fr}
+.document-editor .sun-editor .se-wrapper .se-wrapper-inner{min-height:300px}
+.child-link{display:flex;align-items:center;gap:6px}
+.child-link .related-status{margin-left:auto}
+@media(max-width:600px){.top-actions{gap:6px}.top-actions .primary-button,.top-actions .secondary-button{padding:0 10px;font-size:12px}.workspace-search{padding:12px 14px}.related-item{flex-wrap:wrap}.relation-source{margin-left:5px}.children-section .section-heading{flex-wrap:wrap;gap:7px}}
+
 .calendar-event{white-space:normal}
 
 .calendar-event strong,.calendar-event small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -255,6 +285,12 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 .config-bar{min-height:61px;display:flex;align-items:center;gap:15px;padding:10px 28px;border-bottom:1px solid #e9eeeb;background:#fbfcfb}
 .config-bar-label{flex:none;color:#9aaa9e;font-size:10px;font-weight:750;letter-spacing:.1em}
 .config-tabs{display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow-x:auto;scrollbar-width:thin}
+.config-create-actions{display:flex;align-items:center;gap:8px;flex:none}
+.config-create-actions button{font-size:12px;white-space:nowrap;min-height:35px;padding:0 12px}
+.row-create-actions{display:flex;justify-content:flex-end;align-items:center;gap:4px;position:sticky;right:0;background:inherit}
+.row-create-button{display:grid;place-items:center;width:32px;height:32px;padding:6px;border:0;border-radius:6px;background:transparent;color:#748f80}
+.row-create-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.row-create-button:hover{color:#087b53;background:#e4f2e9}
 .config-item{display:inline-flex;align-items:center;flex:none;border:1px solid #e0e9e2;border-radius:8px;background:#fff;color:#667a6d}
 .config-item.active{background:#eaf6ee;border-color:#acd8bb;color:#087b53}
 .config-tab,.config-edit{border:0;background:transparent;color:inherit;white-space:nowrap}
@@ -266,5 +302,6 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 .add-view-button:hover{background:#eaf6ef;color:#075f42}
 .add-view-icon{font-size:17px;line-height:1}
 @media(max-width:600px){.config-bar{gap:8px;padding-left:14px;padding-right:14px}.config-bar-label,.add-view-label{display:none}.add-view-button{padding:7px 10px}}
+@media(max-width:850px){.config-bar{flex-wrap:wrap}.config-tabs{flex-basis:calc(100% - 155px)}.config-create-actions{margin-left:auto}}
 
 

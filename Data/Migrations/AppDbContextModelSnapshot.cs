@@ -53,10 +53,11 @@ namespace QuireClone.Data.Migrations
                     b.ToTable("CustomFields");
                 });
 
-            modelBuilder.Entity("QuireClone.Domain.TaskFieldValue", b =>
+            modelBuilder.Entity("QuireClone.Domain.ItemFieldValue", b =>
                 {
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("uuid");
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("TaskId");
 
                     b.Property<Guid>("FieldId")
                         .HasColumnType("uuid");
@@ -65,58 +66,26 @@ namespace QuireClone.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("TaskId", "FieldId");
+                    b.HasKey("ItemId", "FieldId");
 
                     b.HasIndex("FieldId", "Value");
 
-                    b.ToTable("TaskFieldValues");
+                    b.ToTable("TaskFieldValues", (string)null);
                 });
 
-            modelBuilder.Entity("QuireClone.Domain.TaskItem", b =>
+            modelBuilder.Entity("QuireClone.Domain.ItemLink", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<Guid>("TaskId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateOnly?>("DueDate")
-                        .HasColumnType("date");
-
-                    b.Property<Guid?>("ParentTaskId")
+                    b.Property<Guid>("DocumentId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
+                    b.HasKey("TaskId", "DocumentId");
 
-                    b.Property<DateOnly?>("StartDate")
-                        .HasColumnType("date");
+                    b.HasIndex("DocumentId");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DueDate");
-
-                    b.HasIndex("ParentTaskId", "SortOrder");
-
-                    b.ToTable("Tasks");
+                    b.ToTable("ItemLinks");
                 });
 
             modelBuilder.Entity("QuireClone.Domain.ViewConfiguration", b =>
@@ -155,7 +124,61 @@ namespace QuireClone.Data.Migrations
                     b.ToTable("ViewConfigurations");
                 });
 
-            modelBuilder.Entity("QuireClone.Domain.TaskFieldValue", b =>
+            modelBuilder.Entity("QuireClone.Domain.WorkspaceItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ParentTaskId");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DueDate");
+
+                    b.HasIndex("ParentId", "SortOrder")
+                        .HasDatabaseName("IX_Tasks_ParentTaskId_SortOrder");
+
+                    b.ToTable("Tasks", (string)null);
+                });
+
+            modelBuilder.Entity("QuireClone.Domain.ItemFieldValue", b =>
                 {
                     b.HasOne("QuireClone.Domain.CustomFieldDefinition", "Field")
                         .WithMany("Values")
@@ -163,25 +186,46 @@ namespace QuireClone.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("QuireClone.Domain.TaskItem", "Task")
+                    b.HasOne("QuireClone.Domain.WorkspaceItem", "Item")
                         .WithMany("FieldValues")
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_TaskFieldValues_Tasks_TaskId");
+
+                    b.Navigation("Field");
+
+                    b.Navigation("Item");
+                });
+
+            modelBuilder.Entity("QuireClone.Domain.ItemLink", b =>
+                {
+                    b.HasOne("QuireClone.Domain.WorkspaceItem", "Document")
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("QuireClone.Domain.WorkspaceItem", "Task")
+                        .WithMany()
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Field");
+                    b.Navigation("Document");
 
                     b.Navigation("Task");
                 });
 
-            modelBuilder.Entity("QuireClone.Domain.TaskItem", b =>
+            modelBuilder.Entity("QuireClone.Domain.WorkspaceItem", b =>
                 {
-                    b.HasOne("QuireClone.Domain.TaskItem", "ParentTask")
+                    b.HasOne("QuireClone.Domain.WorkspaceItem", "ParentItem")
                         .WithMany("Children")
-                        .HasForeignKey("ParentTaskId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("FK_Tasks_Tasks_ParentTaskId");
 
-                    b.Navigation("ParentTask");
+                    b.Navigation("ParentItem");
                 });
 
             modelBuilder.Entity("QuireClone.Domain.CustomFieldDefinition", b =>
@@ -189,7 +233,7 @@ namespace QuireClone.Data.Migrations
                     b.Navigation("Values");
                 });
 
-            modelBuilder.Entity("QuireClone.Domain.TaskItem", b =>
+            modelBuilder.Entity("QuireClone.Domain.WorkspaceItem", b =>
                 {
                     b.Navigation("Children");
 

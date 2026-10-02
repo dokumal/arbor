@@ -4,7 +4,7 @@ using TaskStatus = QuireClone.Domain.TaskStatus;
 
 namespace QuireClone.Contracts;
 
-public sealed record TaskDto(Guid Id, string Title, string Description, Guid? ParentTaskId,
+public sealed record WorkspaceItemDto(Guid Id, WorkspaceItemKind Kind, string Title, string Description, Guid? ParentId,
     TaskStatus Status, DateOnly? StartDate, DateOnly? DueDate, int SortOrder,
     DateTimeOffset UpdatedAt, Dictionary<Guid, string> Fields);
 
@@ -16,15 +16,18 @@ public sealed record ViewFilter(string Field, string Operator, string Value);
 public sealed record ViewConfigurationDto(Guid Id, string Name, ViewKind Kind,
     List<ViewFilter> Filters, List<string> VisibleFields, string? GroupByField, int SortOrder);
 
-public sealed record WorkspaceDto(List<TaskDto> Tasks, List<Guid> MatchingTaskIds,
-    List<CustomFieldDto> CustomFields, List<ViewConfigurationDto> Views);
+public sealed record ItemLinkDto(Guid TaskId, Guid DocumentId);
 
-public sealed class TaskSaveRequest
+public sealed record WorkspaceDto(List<WorkspaceItemDto> Items, List<Guid> MatchingItemIds,
+    List<CustomFieldDto> CustomFields, List<ViewConfigurationDto> Views, List<ItemLinkDto> Links);
+
+public sealed class ItemSaveRequest
 {
+    public WorkspaceItemKind Kind { get; set; }
     [Required, StringLength(300, MinimumLength = 1)]
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
-    public Guid? ParentTaskId { get; set; }
+    public Guid? ParentId { get; set; }
     public TaskStatus Status { get; set; }
     public DateOnly? StartDate { get; set; }
     public DateOnly? DueDate { get; set; }
@@ -39,8 +42,13 @@ public sealed class TaskDatesRequest
 
 public sealed class TaskMoveRequest
 {
-    public Guid? ParentTaskId { get; set; }
+    public Guid? ParentId { get; set; }
     public Guid? BeforeTaskId { get; set; }
+}
+
+public sealed class ItemLinkRequest
+{
+    public Guid RelatedItemId { get; set; }
 }
 
 public sealed class CustomFieldSaveRequest

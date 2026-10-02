@@ -9,13 +9,13 @@ public sealed class CustomFieldDefinition
     public CustomFieldType Type { get; set; }
     public string OptionsJson { get; set; } = "[]";
     public int SortOrder { get; set; }
-    public List<TaskFieldValue> Values { get; set; } = [];
+    public List<ItemFieldValue> Values { get; set; } = [];
 }
 
-public sealed class TaskFieldValue
+public sealed class ItemFieldValue
 {
-    public Guid TaskId { get; set; }
-    public TaskItem Task { get; set; } = null!;
+    public Guid ItemId { get; set; }
+    public WorkspaceItem Item { get; set; } = null!;
     public Guid FieldId { get; set; }
     public CustomFieldDefinition Field { get; set; } = null!;
     public string Value { get; set; } = "";

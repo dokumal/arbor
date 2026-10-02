@@ -1,27 +1,30 @@
 // Compute a move from the actual hierarchy, including siblings hidden by filters.
+import { canContain } from './item-relations.js?v=folders';
+
 export function resolveTreeMove(tasks, draggedId, targetId, placement, levelsUp = 0) {
     const byId = new Map(tasks.map(task => [task.id, task]));
     const dragged = byId.get(draggedId);
     let target = byId.get(targetId);
     if (!dragged || !target) return null;
-    while (levelsUp-- > 0 && target?.parentTaskId) target = byId.get(target.parentTaskId);
+    while (levelsUp-- > 0 && target?.parentId) target = byId.get(target.parentId);
     if (!target || target.id === draggedId) return null;
-    const parentTaskId = placement === 'inside' ? target.id : target.parentTaskId;
-    let ancestor = parentTaskId;
+    const parentId = placement === 'inside' ? target.id : target.parentId;
+    if (parentId && !canContain(byId.get(parentId)?.kind, dragged.kind)) return null;
+    let ancestor = parentId;
     const visited = new Set([draggedId]);
     while (ancestor) {
         if (visited.has(ancestor)) return null;
         visited.add(ancestor);
-        ancestor = byId.get(ancestor)?.parentTaskId;
+        ancestor = byId.get(ancestor)?.parentId;
     }
     let beforeTaskId = null;
     if (placement === 'before') beforeTaskId = target.id;
     if (placement === 'after') {
-        const siblings = tasks.filter(task => task.parentTaskId === parentTaskId && task.id !== draggedId)
+        const siblings = tasks.filter(task => task.parentId === parentId && task.id !== draggedId)
             .sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
         beforeTaskId = siblings[siblings.findIndex(task => task.id === target.id) + 1]?.id || null;
     }
-    return { parentTaskId, beforeTaskId, targetId: target.id, placement };
+    return { parentId, beforeTaskId, targetId: target.id, placement };
 }
 
 export function initializeTreeDrag(content, getTasks, onMove) {
@@ -90,7 +93,7 @@ export function initializeTreeDrag(content, getTasks, onMove) {
         marker.style.setProperty('--drop-indent', `${27 + Math.min(markerDepth, 12) * 22}px`);
         marker.classList.add(`tree-drop-${placement}`);
         const target = getTasks().find(task => task.id === move.targetId);
-        hint.textContent = placement === 'inside' ? `Unteraufgabe von „${target.title}“` :
+        hint.textContent = placement === 'inside' ? `Unter „${target.title}“ einordnen` :
             `${placement === 'before' ? 'Vor' : 'Nach'} „${target.title}“ · gleiche Ebene`;
         hint.style.left = `${Math.max(8, Math.min(event.clientX + 16, window.innerWidth - 300))}px`;
         hint.style.top = `${Math.max(8, Math.min(event.clientY + 18, window.innerHeight - 50))}px`;
@@ -105,9 +108,9 @@ export function initializeTreeDrag(content, getTasks, onMove) {
         if (!draggedId || !destination) return;
         event.preventDefault();
         const id = draggedId;
-        const { parentTaskId, beforeTaskId } = destination;
+        const { parentId, beforeTaskId } = destination;
         finish(); busy = true;
-        try { await onMove(id, { parentTaskId, beforeTaskId }); }
+        try { await onMove(id, { parentId, beforeTaskId }); }
         finally { busy = false; }
     });
     document.addEventListener('dragend', finish);

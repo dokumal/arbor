@@ -1,7 +1,8 @@
 import { getTimelineRange, timelineIntervals } from './timeline-range.js';
+import { isDocument, isFolder, isTask, itemIcon, itemKinds, relatedItems } from './item-relations.js?v=folders';
 
 export const kinds = {
-    Tree: { label: 'Baum', icon: '☷', description: 'Hierarchisch und übersichtlich' },
+    Tree: { label: 'Baum', icon: '☷', description: 'Ordner, Aufgaben und Dokumente gemeinsam organisiert' },
     Kanban: { label: 'Kanban', icon: '▥', description: 'Aufgaben nach Status organisiert' },
     Calendar: { label: 'Kalender', icon: '▦', description: 'Termine auf einen Blick' },
     Timeline: { label: 'Zeitachse', icon: '▬', description: 'Aufgaben im zeitlichen Verlauf' }
@@ -12,7 +13,7 @@ export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, chara
 
 export function fieldLabel(key, definitions) {
     if (key.startsWith('field:')) return definitions.find(field => field.id === key.slice(6))?.name || 'Eigenes Feld';
-    return { title: 'Aufgabe', description: 'Beschreibung', status: 'Status', startDate: 'Start', dueDate: 'Fällig' }[key] || key;
+    return { title: 'Eintrag', kind: 'Typ', description: 'Inhalt', status: 'Status', startDate: 'Start', dueDate: 'Fällig' }[key] || key;
 }
 
 export function fieldValue(task, key, definitions) {
@@ -23,13 +24,14 @@ export function fieldValue(task, key, definitions) {
         if (field?.type === 'Date') return formatDate(value);
         return value || '';
     }
-    if (key === 'status') return statuses[task.status] || task.status;
+    if (key === 'kind') return itemKinds[task.kind] || 'Aufgabe';
+    if (key === 'status') return isTask(task) ? statuses[task.status] || task.status : '';
     if (key === 'startDate' || key === 'dueDate') return formatDate(task[key]);
     if (key === 'description') return descriptionText(task.description);
     return task[key] || '';
 }
 
-function descriptionText(value) {
+export function descriptionText(value) {
     if (!value) return '';
     if (!/<[a-z][^>]*>/i.test(value)) return value;
     const plain = value.replace(/<\/?(?:p|div|li|h[1-6]|tr|br)\b[^>]*>/gi, ' ')
@@ -44,7 +46,26 @@ export function formatDate(value, options = { day: '2-digit', month: 'short', ye
     return new Intl.DateTimeFormat('de-DE', { timeZone: 'UTC', ...options }).format(new Date(`${value}T00:00:00Z`));
 }
 
-const empty = (filtered = false) => `<div class="empty-state"><h3>${filtered ? 'Keine passenden Aufgaben' : 'Noch keine Aufgaben'}</h3><p>${filtered ? 'Passe die Filter dieser Ansicht an.' : 'Erstelle deine erste Aufgabe und beginne mit der Planung.'}</p>${filtered ? '' : '<button class="primary-button" data-action="new-task">＋ Aufgabe erstellen</button>'}</div>`;
+const empty = (filtered = false) => `<div class="empty-state"><h3>${filtered ? 'Keine passenden Einträge' : 'Noch keine Einträge'}</h3><p>${filtered ? 'Passe die Suche oder die Filter dieser Ansicht an.' : 'Erstelle einen Ordner, eine Aufgabe oder ein Dokument.'}</p>${filtered ? '' : '<div class="empty-actions"><button class="secondary-button" data-action="new-folder">＋ Ordner</button><button class="primary-button" data-action="new-task">＋ Aufgabe</button><button class="secondary-button" data-action="new-document">＋ Dokument</button></div>'}</div>`;
+
+const createTaskIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h9M3 12h7M3 18h9M18 9v8M14 13h8"/></svg>';
+const createDocumentIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M12 12v6M9 15h6"/></svg>';
+const createFolderIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 4h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7zM12 11v6M9 14h6"/></svg>';
+
+function rowCreateActions(item) {
+    return `<div class="row-create-actions">${isFolder(item) ? `<button type="button" class="row-create-button" data-action="new-folder" data-parent-id="${item.id}" title="Unterordner erstellen" aria-label="Ordner unter „${escapeHtml(item.title)}“ erstellen">${createFolderIcon}</button>` : ''}<button type="button" class="row-create-button" data-action="new-task" data-parent-id="${item.id}" title="Unteraufgabe erstellen" aria-label="Aufgabe unter „${escapeHtml(item.title)}“ erstellen">${createTaskIcon}</button><button type="button" class="row-create-button" data-action="new-document" data-parent-id="${item.id}" title="Untergeordnetes Dokument erstellen" aria-label="Dokument unter „${escapeHtml(item.title)}“ erstellen">${createDocumentIcon}</button></div>`;
+}
+
+function itemSymbol(item) {
+    return isTask(item) ? `<span class="status-dot ${item.status}"></span>` :
+        `<span class="${isFolder(item) ? 'folder-symbol' : 'document-symbol'}" title="${itemKinds[item.kind]}">${itemIcon(item)}</span>`;
+}
+
+function documentRefs(task) {
+    const docs = task.relatedDocuments || [];
+    if (!docs.length) return '';
+    return `<div class="document-refs">${docs.slice(0, 2).map(doc => `<button type="button" class="document-ref" data-action="open-task" data-id="${doc.id}" title="${escapeHtml(doc.title)}">📄 ${escapeHtml(doc.title)}</button>`).join('')}${docs.length > 2 ? `<button type="button" class="document-ref" data-action="open-task" data-id="${task.id}">+${docs.length - 2}</button>` : ''}</div>`;
+}
 
 function groupTasks(tasks, view, definitions) {
     if (!view.groupByField) return null;
@@ -52,13 +73,13 @@ function groupTasks(tasks, view, definitions) {
     const definition = field.startsWith('field:') ? definitions.find(item => item.id === field.slice(6)) : null;
     const groups = new Map();
     for (const task of tasks) {
-        const raw = field.startsWith('field:') ? task.fields[field.slice(6)] :
+        const raw = field === 'status' && !isTask(task) ? null : field.startsWith('field:') ? task.fields[field.slice(6)] :
             field === 'description' ? descriptionText(task.description) : task[field];
         const key = String(raw ?? '').trim();
         if (!groups.has(key)) groups.set(key, { key, label: key ? fieldValue(task, field, definitions) : 'Ohne Wert', tasks: [] });
         groups.get(key).tasks.push(task);
     }
-    const order = field === 'status' ? Object.keys(statuses) : definition?.type === 'Select' ? definition.options : null;
+    const order = field === 'kind' ? Object.keys(itemKinds) : field === 'status' ? Object.keys(statuses) : definition?.type === 'Select' ? definition.options : null;
     return [...groups.values()].sort((a, b) => {
         if (!a.key && !b.key) return 0;
         if (!a.key) return 1;
@@ -79,35 +100,39 @@ function groupHeading(view, group, collapsed) {
 
 export function renderView(data, view, ui) {
     if (!view) return empty();
-    const matching = new Set(data.matchingTaskIds);
-    const tasks = data.tasks.filter(task => matching.has(task.id));
-    if (!tasks.length && view.kind !== 'Timeline') return empty(view.filters.length > 0);
+    const matching = new Set(data.matchingItemIds);
+    const matchingItems = data.items.filter(task => matching.has(task.id));
+    const tasks = matchingItems.filter(isTask).map(task => ({ ...task,
+        relatedDocuments: relatedItems(data.items, data.links, task.id).map(relation => relation.item) }));
+    if (!matchingItems.length && view.kind !== 'Timeline') return empty(view.filters.length > 0 || !!data.searchQuery);
+    if (view.kind !== 'Tree' && !tasks.length && view.kind !== 'Timeline')
+        return '<div class="empty-state"><h3>Keine passenden Aufgaben</h3><p>Ordner und Dokumente findest du in der Baumansicht.</p><button class="secondary-button" data-action="select-kind" data-kind="Tree">Zum gemeinsamen Baum</button></div>';
     switch (view.kind) {
         case 'Kanban': return renderKanban(tasks, view, data.customFields, ui.collapsedGroups);
         case 'Calendar': return renderCalendar(tasks, view, data.customFields, ui.month);
         case 'Timeline': return renderTimeline(tasks, view, data.customFields, ui.timelineDate, ui.timelineInterval, ui.collapsedGroups);
-        default: return renderTree(data.tasks, matching, view, data.customFields, ui.expanded, ui.selectedTaskId, ui.collapsedGroups);
+        default: return renderTree(data.items, matching, view, data.customFields, ui.expanded, ui.selectedTaskId, ui.collapsedGroups);
     }
 }
 
 function renderTree(allTasks, matching, view, definitions, expanded, selectedId, collapsed) {
-    const columns = view.visibleFields.filter(key => key !== 'title' && key !== 'description' && (key.startsWith('field:') || ['status', 'startDate', 'dueDate'].includes(key)));
+    const columns = view.visibleFields.filter(key => key !== 'title' && key !== 'description' && (key.startsWith('field:') || ['kind', 'status', 'startDate', 'dueDate'].includes(key)));
     if (view.visibleFields.includes('description')) columns.push('description');
-    const grid = `grid-template-columns:minmax(300px,2.5fr) ${columns.map(() => 'minmax(110px,1fr)').join(' ')}`;
+    const grid = `grid-template-columns:minmax(300px,2.5fr) ${columns.map(() => 'minmax(110px,1fr)').join(' ')} 104px`;
     const rowsFor = (sourceTasks, includeAncestors) => {
         const byId = new Map(sourceTasks.map(task => [task.id, task]));
         const shown = new Set(sourceTasks.filter(task => matching.has(task.id)).map(task => task.id));
         if (includeAncestors) for (const id of matching) {
-            let parentId = byId.get(id)?.parentTaskId;
+            let parentId = byId.get(id)?.parentId;
             const visited = new Set();
             while (parentId && byId.has(parentId) && !visited.has(parentId)) {
                 visited.add(parentId); shown.add(parentId);
-                parentId = byId.get(parentId)?.parentTaskId;
+                parentId = byId.get(parentId)?.parentId;
             }
         }
         const children = new Map();
         for (const task of sourceTasks.filter(task => shown.has(task.id))) {
-            const parentId = shown.has(task.parentTaskId) ? task.parentTaskId : null;
+            const parentId = shown.has(task.parentId) ? task.parentId : null;
             if (!children.has(parentId)) children.set(parentId, []);
             children.get(parentId).push(task);
         }
@@ -115,9 +140,9 @@ function renderTree(allTasks, matching, view, definitions, expanded, selectedId,
         const walk = (task, depth) => {
             const subs = children.get(task.id) || [];
             const chevron = subs.length
-                ? `<button class="tree-chevron" data-action="toggle" data-id="${task.id}" aria-label="Unteraufgaben ${expanded.has(task.id) ? 'einklappen' : 'ausklappen'}">${expanded.has(task.id) ? '▾' : '▸'}</button>`
+                ? `<button class="tree-chevron" data-action="toggle" data-id="${task.id}" aria-label="Untergeordnete Einträge ${expanded.has(task.id) ? 'einklappen' : 'ausklappen'}">${expanded.has(task.id) ? '▾' : '▸'}</button>`
                 : '<span class="chevron-spacer"></span>';
-            rows.push(`<div class="task-row ${matching.has(task.id) ? '' : 'context-row'} ${selectedId === task.id ? 'selected' : ''}" style="${grid}" data-action="open-task" data-id="${task.id}" data-depth="${depth}"><div class="tree-title" style="padding-left:${Math.min(depth, 12) * 22}px"><button type="button" class="tree-drag-handle" draggable="true" data-tree-drag="${task.id}" title="Aufgabe verschieben" aria-label="${escapeHtml(task.title)} verschieben">⠿</button>${chevron}<span class="status-dot ${task.status}"></span><span class="tree-title-text">${escapeHtml(task.title)}</span></div>${columns.map(key => `<div class="cell-muted">${renderCell(task, key, definitions)}</div>`).join('')}</div>`);
+            rows.push(`<div class="task-row ${isFolder(task) ? 'folder-row' : isDocument(task) ? 'document-row' : ''} ${matching.has(task.id) ? '' : 'context-row'} ${selectedId === task.id ? 'selected' : ''}" style="${grid}" data-action="open-task" data-id="${task.id}" data-depth="${depth}"><div class="tree-title" style="padding-left:${Math.min(depth, 12) * 22}px"><button type="button" class="tree-drag-handle" draggable="true" data-tree-drag="${task.id}" title="Eintrag verschieben" aria-label="${escapeHtml(task.title)} verschieben">⠿</button>${chevron}${itemSymbol(task)}<span class="tree-title-text">${escapeHtml(task.title)}</span></div>${columns.map(key => `<div class="cell-muted">${renderCell(task, key, definitions)}</div>`).join('')}${rowCreateActions(task)}</div>`);
             if (expanded.has(task.id)) subs.forEach(child => walk(child, depth + 1));
         };
         (children.get(null) || []).forEach(task => walk(task, 0));
@@ -125,7 +150,7 @@ function renderTree(allTasks, matching, view, definitions, expanded, selectedId,
     };
     const groups = groupTasks(allTasks.filter(task => matching.has(task.id)), view, definitions);
     const body = groups ? groups.map(group => `<div class="tree-group">${groupHeading(view, group, collapsed)}${groupIsCollapsed(view, group, collapsed) ? '' : rowsFor(group.tasks, false)}</div>`).join('') : rowsFor(allTasks, true);
-    return `<div class="table-scroll"><div class="task-table"><div class="table-head" style="${grid}"><span>Aufgabe</span>${columns.map(key => `<span>${escapeHtml(fieldLabel(key, definitions))}</span>`).join('')}</div>${body}</div></div>`;
+    return `<div class="table-scroll"><div class="task-table"><div class="table-head" style="${grid}"><span>Eintrag</span>${columns.map(key => `<span>${escapeHtml(fieldLabel(key, definitions))}</span>`).join('')}<span aria-hidden="true"></span></div>${body}</div></div>`;
 }
 
 function renderCell(task, key, definitions) {
@@ -141,7 +166,7 @@ function renderKanbanBoard(tasks, view, definitions, groupKey, columnStatuses = 
     return `<div class="kanban-board ${columnStatuses.length === 1 ? 'single-status' : ''}">${columnStatuses.map(status => {
         const label = statuses[status];
         const columnTasks = tasks.filter(task => task.status === status);
-        return `<section class="kanban-column" data-status="${status}"${groupAttribute}><div class="column-heading"><span class="status-dot ${status}"></span>${label}<span class="column-count">${columnTasks.length}</span></div><div class="column-body">${columnTasks.map(task => `<article class="kanban-card" draggable="true" data-action="open-task" data-id="${task.id}"${groupAttribute}><div class="card-title">${escapeHtml(task.title)}</div>${view.visibleFields.includes('description') && task.description ? `<p class="card-description">${escapeHtml(descriptionText(task.description))}</p>` : ''}<div class="card-meta">${view.visibleFields.filter(key => !['title', 'status', 'description'].includes(key)).map(key => fieldValue(task, key, definitions) ? `<span>${escapeHtml(fieldLabel(key, definitions))}: ${escapeHtml(fieldValue(task, key, definitions))}</span>` : '').join('')}</div></article>`).join('')}${groupKey === null || view.groupByField === 'status' ? `<button class="add-column-task" data-action="new-task" data-status="${status}">＋ Aufgabe hinzufügen</button>` : ''}</div></section>`;
+        return `<section class="kanban-column" data-status="${status}"${groupAttribute}><div class="column-heading"><span class="status-dot ${status}"></span>${label}<span class="column-count">${columnTasks.length}</span></div><div class="column-body">${columnTasks.map(task => `<article class="kanban-card" draggable="true" data-action="open-task" data-id="${task.id}"${groupAttribute}><div class="card-title">${escapeHtml(task.title)}</div>${view.visibleFields.includes('description') && task.description ? `<p class="card-description">${escapeHtml(descriptionText(task.description))}</p>` : ''}<div class="card-meta">${view.visibleFields.filter(key => !['title', 'status', 'description'].includes(key)).map(key => fieldValue(task, key, definitions) ? `<span>${escapeHtml(fieldLabel(key, definitions))}: ${escapeHtml(fieldValue(task, key, definitions))}</span>` : '').join('')}</div>${documentRefs(task)}</article>`).join('')}${groupKey === null || view.groupByField === 'status' ? `<button class="add-column-task" data-action="new-task" data-status="${status}">＋ Aufgabe hinzufügen</button>` : ''}</div></section>`;
     }).join('')}</div>`;
 }
 
@@ -192,7 +217,9 @@ function renderCalendar(tasks, view, definitions, monthValue) {
             laneEnds[lane] = item.lastColumn;
             const details = view.visibleFields.filter(key => !['title', 'startDate', 'dueDate'].includes(key))
                 .map(key => fieldValue(item.task, key, definitions)).filter(Boolean);
-            const tooltip = [item.task.title, `${formatDate(new Date(item.from).toISOString().slice(0, 10))} – ${formatDate(new Date(item.to).toISOString().slice(0, 10))}`, ...details].join(' · ');
+            if (item.task.relatedDocuments.length) details.push(`📄 ${item.task.relatedDocuments.length}`);
+            const tooltip = [item.task.title, `${formatDate(new Date(item.from).toISOString().slice(0, 10))} – ${formatDate(new Date(item.to).toISOString().slice(0, 10))}`, ...details,
+                ...item.task.relatedDocuments.map(doc => `Dokument: ${doc.title}`)].join(' · ');
             return `<button class="calendar-event ${item.from < weekStart ? 'continues-before' : ''} ${item.to > weekEnd ? 'continues-after' : ''}" style="grid-column:${item.column + 1}/span ${item.lastColumn - item.column + 1};grid-row:${lane + 1}" data-action="open-task" data-id="${item.task.id}" title="${escapeHtml(tooltip)}"><strong>${escapeHtml(item.task.title)}</strong>${details.length ? `<small>${escapeHtml(details.join(' · '))}</small>` : ''}</button>`;
         }).join('');
         return `<div class="calendar-week" style="min-height:${Math.max(118, 42 + laneEnds.length * 45)}px">${days}<div class="calendar-week-events" style="grid-template-rows:repeat(${laneEnds.length},40px)">${bars}</div></div>`;
@@ -217,6 +244,7 @@ function renderTimeline(tasks, view, definitions, anchor, interval, collapsed) {
             bar = right > left ? `<div class="timeline-bar ${task.status}" style="left:${left / range.days * 100}%;width:${Math.max((right - left) / range.days * 100, 1.5)}%" data-id="${task.id}" title="${tooltip}">${taskStart >= start ? '<button type="button" class="timeline-resize start" data-edge="start" title="Startdatum ändern" aria-label="Startdatum ändern"></button>' : ''}<button type="button" class="timeline-body" data-action="open-task" data-id="${task.id}">${escapeHtml(task.title)}</button>${taskEnd < end ? '<button type="button" class="timeline-resize end" data-edge="end" title="Enddatum ändern" aria-label="Enddatum ändern"></button>' : ''}</div>` : '';
         }
         const extras = view.visibleFields.filter(key => key !== 'title').map(key => fieldValue(task, key, definitions)).filter(Boolean);
+        if (task.relatedDocuments.length) extras.unshift(`📄 ${task.relatedDocuments.length} ${task.relatedDocuments.length === 1 ? 'Dokument' : 'Dokumente'}`);
         return `<div class="timeline-row"><div class="timeline-label" data-action="open-task" data-id="${task.id}" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}${extras.length ? `<span class="cell-muted"> · ${escapeHtml(extras.join(', '))}</span>` : ''}</div><div class="timeline-track">${bar}</div></div>`;
     }).join('');
     const groups = groupTasks(tasks, view, definitions);
