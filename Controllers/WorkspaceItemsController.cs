@@ -54,6 +54,18 @@ public sealed class WorkspaceItemsController(WorkspaceItemService items) : Contr
         catch (ArgumentException exception) { return BadRequest(new { error = exception.Message }); }
     }
 
+    [HttpPatch("{id:guid}/fields/{fieldId:guid}")]
+    public async Task<IActionResult> UpdateField(Guid id, Guid fieldId, ItemFieldValueRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await items.UpdateFieldAsync(id, fieldId, request.Value, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (ArgumentException exception) { return BadRequest(new { error = exception.Message }); }
+    }
+
     [HttpPost("{id:guid}/move")]
     public async Task<IActionResult> Move(Guid id, TaskMoveRequest request, CancellationToken cancellationToken)
     {

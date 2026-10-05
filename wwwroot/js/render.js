@@ -142,7 +142,7 @@ function renderTree(allTasks, matching, view, definitions, expanded, selectedId,
             const chevron = subs.length
                 ? `<button class="tree-chevron" data-action="toggle" data-id="${task.id}" aria-label="Untergeordnete Einträge ${expanded.has(task.id) ? 'einklappen' : 'ausklappen'}">${expanded.has(task.id) ? '▾' : '▸'}</button>`
                 : '<span class="chevron-spacer"></span>';
-            rows.push(`<div class="task-row ${isFolder(task) ? 'folder-row' : isDocument(task) ? 'document-row' : ''} ${matching.has(task.id) ? '' : 'context-row'} ${selectedId === task.id ? 'selected' : ''}" style="${grid}" data-action="open-task" data-id="${task.id}" data-depth="${depth}"><div class="tree-title" style="padding-left:${Math.min(depth, 12) * 22}px"><button type="button" class="tree-drag-handle" draggable="true" data-tree-drag="${task.id}" title="Eintrag verschieben" aria-label="${escapeHtml(task.title)} verschieben">⠿</button>${chevron}${itemSymbol(task)}<span class="tree-title-text">${escapeHtml(task.title)}</span></div>${columns.map(key => `<div class="cell-muted">${renderCell(task, key, definitions)}</div>`).join('')}${rowCreateActions(task)}</div>`);
+            rows.push(`<div class="task-row ${isFolder(task) ? 'folder-row' : isDocument(task) ? 'document-row' : ''} ${matching.has(task.id) ? '' : 'context-row'} ${selectedId === task.id ? 'selected' : ''}" style="${grid}" data-action="open-task" data-id="${task.id}" data-depth="${depth}"><div class="tree-title" style="padding-left:${Math.min(depth, 12) * 22}px"><button type="button" class="tree-drag-handle" draggable="true" data-tree-drag="${task.id}" title="Eintrag verschieben" aria-label="${escapeHtml(task.title)} verschieben">⠿</button>${chevron}${itemSymbol(task)}<span class="tree-title-text">${escapeHtml(task.title)}</span></div>${columns.map(key => renderTreeCell(task, key, definitions)).join('')}${rowCreateActions(task)}</div>`);
             if (expanded.has(task.id)) subs.forEach(child => walk(child, depth + 1));
         };
         (children.get(null) || []).forEach(task => walk(task, 0));
@@ -153,12 +153,23 @@ function renderTree(allTasks, matching, view, definitions, expanded, selectedId,
     return `<div class="table-scroll"><div class="task-table"><div class="table-head" style="${grid}"><span>Eintrag</span>${columns.map(key => `<span>${escapeHtml(fieldLabel(key, definitions))}</span>`).join('')}<span aria-hidden="true"></span></div>${body}</div></div>`;
 }
 
-function renderCell(task, key, definitions) {
-    const value = fieldValue(task, key, definitions);
-    if (!value) return '—';
-    if (key.startsWith('field:') && definitions.find(field => field.id === key.slice(6))?.name === 'Label')
-        return `<span class="cell-pill">${escapeHtml(value)}</span>`;
-    return escapeHtml(value);
+function renderTreeCell(task, key, definitions) {
+    const field = key.startsWith('field:') && !isFolder(task) ? definitions.find(item => item.id === key.slice(6)) : null;
+    if (field) return `<div class="cell-edit">${inlineFieldInput(task, field)}</div>`;
+    return `<div class="cell-muted">${escapeHtml(fieldValue(task, key, definitions)) || '—'}</div>`;
+}
+
+// Custom fields are edited directly in the tree; app.js saves them on change.
+function inlineFieldInput(task, field) {
+    const value = task.fields[field.id] || '';
+    const pill = field.name === 'Label' && value ? 'inline-pill' : '';
+    const attributes = `class="inline-field ${value ? pill : 'empty'}" data-inline-field="${field.id}" data-item-id="${task.id}" aria-label="${escapeHtml(`${field.name} von „${task.title}“`)}"`;
+    if (field.type === 'Select' || field.type === 'Boolean') {
+        const choices = field.type === 'Boolean' ? [['true', 'Ja'], ['false', 'Nein']] : field.options.map(option => [option, option]);
+        return `<select ${attributes}><option value="">—</option>${choices.map(([key, label]) => `<option value="${escapeHtml(key)}" ${key === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select>`;
+    }
+    const type = { Number: 'number', Date: 'date' }[field.type] || 'text';
+    return `<input ${attributes} type="${type}" ${type === 'number' ? 'step="any"' : ''} maxlength="500" placeholder="—" value="${escapeHtml(value)}" title="${escapeHtml(value)}" />`;
 }
 
 function renderKanbanBoard(tasks, view, definitions, groupKey, columnStatuses = Object.keys(statuses)) {

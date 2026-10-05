@@ -40,6 +40,11 @@ public sealed class TaskDatesRequest
     public DateOnly? DueDate { get; set; }
 }
 
+public sealed class ItemFieldValueRequest
+{
+    public string? Value { get; set; }
+}
+
 public sealed class TaskMoveRequest
 {
     public Guid? ParentId { get; set; }

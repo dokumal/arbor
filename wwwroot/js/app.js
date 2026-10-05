@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { escapeHtml, fieldLabel, kinds, renderView, statuses, descriptionText } from './render.js?v=folders';
+import { escapeHtml, fieldLabel, kinds, renderView, statuses, descriptionText } from './render.js?v=inline-fields';
 import { getDescription, setDescription } from './description-editor.js';
 import { initializeTaskDisplay } from './task-display.js';
 import { initializeTreeDrag } from './tree-drag.js?v=folders';
@@ -93,8 +93,28 @@ function render() {
         return terms.every(term => text.includes(term));
     };
     const data = { ...workspace, searchQuery: query, matchingItemIds: workspace.matchingItemIds.filter(id => matchesSearch(taskById(id))) };
+    // Re-rendering replaces the table, so keep the cell being edited focused (e.g. after tabbing on from a saved cell).
+    const editing = $('view-content').contains(document.activeElement) && document.activeElement.matches('[data-inline-field]') ? document.activeElement : null;
     $('view-content').innerHTML = view ? renderView(data, view, ui)
         : `<div class="empty-state"><h3>Keine Konfiguration für ${escapeHtml(kinds[ui.kind]?.label || 'diese Sicht')}</h3><p>Erstelle eine Konfiguration mit deinen gewünschten Filtern und Feldern.</p><button class="primary-button" data-action="new-view">＋ Konfiguration erstellen</button></div>`;
+    if (editing) {
+        const replacement = $('view-content').querySelector(`[data-item-id="${editing.dataset.itemId}"][data-inline-field="${editing.dataset.inlineField}"]`);
+        if (replacement) { replacement.value = editing.value; replacement.focus(); }
+    }
+}
+
+async function saveInlineField(input) {
+    const task = taskById(input.dataset.itemId);
+    const fieldId = input.dataset.inlineField;
+    const value = input.value.trim() || null;
+    if (!task || (task.fields[fieldId] ?? null) === value) return;
+    try {
+        await api(`/api/items/${task.id}/fields/${fieldId}`, { method: 'PATCH', body: JSON.stringify({ value }) });
+        await loadWorkspace();
+    } catch (error) {
+        notify(error.message);
+        render();
+    }
 }
 
 function notify(message) {
@@ -339,6 +359,7 @@ function shiftTimeline(amount) {
 }
 
 document.addEventListener('click', async event => {
+    if (event.target.closest('.cell-edit')) return;
     const action = event.target.closest('[data-action]');
     if (!action) return;
     switch (action.dataset.action) {
@@ -427,6 +448,7 @@ $('delete-view-button').addEventListener('click', deleteView);
 $('field-form').addEventListener('submit', saveField);
 $('field-type').addEventListener('change', () => $('field-options-wrap').hidden = $('field-type').value !== 'Select');
 document.addEventListener('change', event => {
+    if (event.target.matches('[data-inline-field]')) saveInlineField(event.target);
     if (event.target.matches('.filter-field')) {
         const row = event.target.closest('.filter-row');
         row.querySelector('.filter-value').outerHTML = filterValueControl(event.target.value);
@@ -438,6 +460,14 @@ document.addEventListener('change', event => {
     }
 });
 document.querySelectorAll('.dialog-close').forEach(button => button.addEventListener('click', () => $(button.dataset.dialog).close()));
+document.addEventListener('keydown', event => {
+    if (!event.target.matches('input[data-inline-field]')) return;
+    if (event.key === 'Enter') event.target.blur();
+    if (event.key === 'Escape') {
+        event.target.value = taskById(event.target.dataset.itemId)?.fields[event.target.dataset.inlineField] || '';
+        event.target.blur();
+    }
+});
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('task-drawer').hidden && !document.querySelector('dialog[open]')) closeTask(); });
 
 loadWorkspace().catch(error => { $('view-content').innerHTML = `<div class="empty-state"><h3>Workspace konnte nicht geladen werden</h3><p>${escapeHtml(error.message)}</p></div>`; });

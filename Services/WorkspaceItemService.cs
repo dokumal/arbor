@@ -99,6 +99,31 @@ public sealed class WorkspaceItemService(AppDbContext db)
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateFieldAsync(Guid id, Guid fieldId, string? value, CancellationToken cancellationToken)
+    {
+        var item = await db.Items.Include(x => x.FieldValues)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new KeyNotFoundException("Eintrag nicht gefunden.");
+        if (item.Kind == WorkspaceItemKind.Folder)
+            throw new ArgumentException("Ordner haben keine eigenen Felder.");
+        var field = await db.CustomFields.FindAsync([fieldId], cancellationToken)
+            ?? throw new ArgumentException("Ein benutzerdefiniertes Feld existiert nicht mehr.");
+        ValidateValue(field, value);
+
+        var existing = item.FieldValues.FirstOrDefault(x => x.FieldId == fieldId);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            if (existing is null) return;
+            item.FieldValues.Remove(existing);
+            db.ItemFieldValues.Remove(existing);
+        }
+        else if (existing is null)
+            item.FieldValues.Add(new ItemFieldValue { ItemId = item.Id, FieldId = fieldId, Value = value.Trim() });
+        else existing.Value = value.Trim();
+        item.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task MoveAsync(Guid id, TaskMoveRequest request, CancellationToken cancellationToken)
     {
         var item = await db.Items.FindAsync([id], cancellationToken)

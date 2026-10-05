@@ -75,7 +75,15 @@ main{max-width:1600px;margin:auto;padding:0 clamp(20px,4vw,64px) 70px}
 .status-dot.Done{border-color:#0e9663;background:#0e9663}
 .status-dot.Done::after{content:"✓"}
 .cell-muted{color:#7c8b84;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cell-pill{display:inline-flex;background:#eff5f1;border:1px solid #e3ede6;padding:4px 8px;border-radius:6px;color:#486657;font-size:11px;font-weight:600}
+.cell-edit{min-width:0;margin:0 -8px;cursor:default}
+.inline-field{width:100%;min-width:0;height:32px;border:1px solid transparent;border-radius:6px;background:transparent;color:#5d6f66;font:inherit;padding:0 7px;outline:none;cursor:pointer;text-overflow:ellipsis}
+.inline-field.empty{color:#a9b7b0}
+.inline-field.empty option{color:#283d30}
+.inline-field.inline-pill{width:auto;max-width:100%;height:26px;background:#eff5f1;border-color:#e3ede6;color:#486657;font-size:11px;font-weight:600}
+.task-row:hover .inline-field{border-color:#e3ebe5}
+.inline-field:hover{border-color:#cfdcd3;background:#fff}
+.inline-field:focus{border-color:#34aa75;background:#fff;color:#283d30;box-shadow:0 0 0 3px #3aaa7423;cursor:text}
+select.inline-field:focus{cursor:pointer}
 .group-heading{width:100%;display:flex;align-items:center;gap:10px;border:0;border-bottom:1px solid #e4ece6;background:#f1f7f2;color:#315b40;text-align:left;padding:11px 15px;font-size:12px;font-weight:700}
 .group-heading:hover{background:#e8f3eb}
 .group-chevron{width:15px;color:#6b9478;text-align:center}
