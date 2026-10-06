@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { escapeHtml, fieldLabel, kinds, renderView, statuses, descriptionText } from './render.js?v=inline-fields';
+import { escapeHtml, fieldLabel, kinds, renderView, statuses, descriptionText } from './render.js?v=view-sorting';
 import { getDescription, setDescription } from './description-editor.js';
 import { initializeTaskDisplay } from './task-display.js';
 import { initializeTreeDrag } from './tree-drag.js?v=folders';
@@ -7,6 +7,7 @@ import { initializeTimelineDrag } from './timeline-drag.js';
 import { timelineIntervals, shiftTimelineDate } from './timeline-range.js';
 import { isDocument, isFolder, isTask, canContain, itemIcon, itemKinds } from './item-relations.js?v=folders';
 import { initializeItemLinks } from './item-links.js?v=folders';
+import { initializeOptionEditors, readOptions, renderOptionEditor } from './option-editor.js';
 
 const $ = id => document.getElementById(id);
 initializeTaskDisplay($('task-drawer'), $('task-display-toggle'));
@@ -25,6 +26,7 @@ const ui = {
 let workspace = { items: [], matchingItemIds: [], customFields: [], views: [], links: [] };
 let dragTaskId = null;
 let dragGroupKey = null;
+let editingFieldId = null;
 let toastTimer;
 
 const currentView = () => workspace.views.find(view => view.id === ui.viewId && view.kind === ui.kind) || null;
@@ -84,7 +86,8 @@ function render() {
     $('view-icon').textContent = kinds[ui.kind]?.icon || '☷';
     $('view-title').textContent = view?.name || 'Noch keine Konfiguration';
     $('view-description').textContent = kinds[ui.kind]?.description || '';
-    $('filter-summary').textContent = view?.filters.length ? `${view.filters.length} Filter aktiv` : '';
+    $('filter-summary').textContent = [view?.filters.length ? `${view.filters.length} Filter aktiv` : '',
+        view?.hideCompleted ? 'Erledigte ausgeblendet' : ''].filter(Boolean).join(' · ');
     $('edit-view-button').hidden = !view;
     const query = ui.search.trim().toLocaleLowerCase('de');
     const terms = query.split(/\s+/).filter(Boolean);
@@ -245,12 +248,21 @@ const builtinFields = [
 ];
 function allFieldChoices() { return [...builtinFields, ...workspace.customFields.map(field => [`field:${field.id}`, field.name])]; }
 
+// Grouping and sorting don't apply to the calendar, which is laid out by date.
 function updateGroupingSettings() {
     const calendar = $('config-kind').value === 'Calendar';
     $('grouping-settings').hidden = calendar;
     $('config-group-by').disabled = calendar;
     if (calendar) $('config-group-by').value = '';
+    $('sort-settings').hidden = calendar;
+    $('config-sort-by').disabled = calendar;
+    if (calendar) $('config-sort-by').value = '';
+    $('config-sort-direction').disabled = calendar || !$('config-sort-by').value;
 }
+
+// Relative values are resolved by the server on every load, e.g. "@today+7".
+const relativeDates = [['@today', 'Heute'], ['@today+1', 'Morgen'], ['@today-1', 'Gestern'],
+    ['@today+7', 'In 7 Tagen'], ['@today-7', 'Vor 7 Tagen'], ['@today+30', 'In 30 Tagen'], ['@today-30', 'Vor 30 Tagen']];
 
 function filterValueControl(fieldKey, value = '') {
     const field = workspace.customFields.find(item => fieldKey === `field:${item.id}`);
@@ -259,7 +271,20 @@ function filterValueControl(fieldKey, value = '') {
         field?.type === 'Boolean' ? [['true', 'Ja'], ['false', 'Nein']] : null;
     if (choices) return `<select class="filter-value" aria-label="Filterwert"><option value="">Wert wählen</option>${choices.map(([key, label]) => `<option value="${escapeHtml(key)}" ${value === key ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select>`;
     const type = ['startDate', 'dueDate'].includes(fieldKey) || field?.type === 'Date' ? 'date' : field?.type === 'Number' ? 'number' : 'text';
+    if (type === 'date') {
+        const relative = relativeDates.some(([key]) => key === value);
+        return `<div class="filter-value filter-date"><select class="filter-date-mode" aria-label="Datumsart"><option value="">Bestimmtes Datum</option>${relativeDates.map(([key, label]) => `<option value="${key}" ${value === key ? 'selected' : ''}>${label}</option>`).join('')}</select><input class="filter-date-input" type="date" aria-label="Datum" value="${relative ? '' : escapeHtml(value)}" ${relative ? 'hidden' : ''} /></div>`;
+    }
     return `<input class="filter-value" aria-label="Filterwert" type="${type}" ${type === 'number' ? 'step="any"' : ''} maxlength="500" value="${escapeHtml(value)}" placeholder="Wert" />`;
+}
+
+function filterValue(control) {
+    if (!control.matches('.filter-date')) return control.value;
+    return control.querySelector('.filter-date-mode').value || control.querySelector('.filter-date-input').value;
+}
+
+function setFilterValueDisabled(control, disabled) {
+    [control, ...control.querySelectorAll('select, input')].forEach(element => element.disabled = disabled);
 }
 
 function openViewDialog(id = null) {
@@ -272,6 +297,11 @@ function openViewDialog(id = null) {
     $('config-group-by').innerHTML = '<option value="">Keine Gruppierung</option>' +
         allFieldChoices().map(([key, label]) => `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`).join('');
     $('config-group-by').value = view?.groupByField || '';
+    $('config-sort-by').innerHTML = '<option value="">Manuelle Reihenfolge</option>' +
+        allFieldChoices().filter(([key]) => key !== 'description').map(([key, label]) => `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`).join('');
+    $('config-sort-by').value = view?.sortField || '';
+    $('config-sort-direction').value = view?.sortDescending ? 'desc' : 'asc';
+    $('config-hide-completed').checked = !!view?.hideCompleted;
     updateGroupingSettings();
     $('delete-view-button').hidden = !view;
     const selected = new Set(view?.visibleFields || ['title', 'status', 'dueDate']);
@@ -287,16 +317,20 @@ function addFilterRow(filter = { field: 'status', operator: 'equals', value: '' 
     const fields = allFieldChoices().map(([key, label]) => `<option value="${key}" ${filter.field === key ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('');
     const operators = [['equals', 'ist'], ['notEquals', 'ist nicht'], ['contains', 'enthält'], ['isEmpty', 'ist leer'], ['isNotEmpty', 'ist nicht leer'], ['before', 'vor'], ['after', 'nach'], ['greaterThan', 'größer als'], ['lessThan', 'kleiner als']];
     row.innerHTML = `<select class="filter-field" aria-label="Filterfeld">${fields}</select><select class="filter-operator" aria-label="Operator">${operators.map(([value, label]) => `<option value="${value}" ${filter.operator === value ? 'selected' : ''}>${label}</option>`).join('')}</select>${filterValueControl(filter.field, filter.value)}<button type="button" class="filter-remove" data-action="remove-filter" aria-label="Filter entfernen">×</button>`;
-    row.querySelector('.filter-value').disabled = ['isEmpty', 'isNotEmpty'].includes(filter.operator);
+    setFilterValueDisabled(row.querySelector('.filter-value'), ['isEmpty', 'isNotEmpty'].includes(filter.operator));
     $('filter-rows').append(row);
 }
 
 async function saveView(event) {
     event.preventDefault(); $('view-form-error').textContent = '';
     const visibleFields = ['title', ...Array.from($('visible-fields').querySelectorAll('input:checked')).map(input => input.value)].filter((value, index, values) => values.indexOf(value) === index);
-    const filters = Array.from($('filter-rows').querySelectorAll('.filter-row')).map(row => ({ field: row.querySelector('.filter-field').value, operator: row.querySelector('.filter-operator').value, value: row.querySelector('.filter-value').value }));
+    const filters = Array.from($('filter-rows').querySelectorAll('.filter-row')).map(row => ({ field: row.querySelector('.filter-field').value, operator: row.querySelector('.filter-operator').value, value: filterValue(row.querySelector('.filter-value')) }));
+    const calendar = $('config-kind').value === 'Calendar';
     const payload = { name: $('config-name').value.trim(), kind: $('config-kind').value,
-        groupByField: $('config-kind').value === 'Calendar' ? null : $('config-group-by').value || null,
+        groupByField: calendar ? null : $('config-group-by').value || null,
+        sortField: calendar ? null : $('config-sort-by').value || null,
+        sortDescending: $('config-sort-direction').value === 'desc',
+        hideCompleted: $('config-hide-completed').checked,
         visibleFields, filters };
     try {
         const id = ui.editingViewId;
@@ -321,23 +355,67 @@ async function deleteView() {
     catch (error) { showError('view-form-error', error); }
 }
 
+function renderFieldList() {
+    $('field-list').innerHTML = workspace.customFields.map(field => {
+        const select = field.type === 'Select';
+        const editing = select && field.id === editingFieldId;
+        const edit = select && !editing ? `<button type="button" class="icon-button" data-action="edit-field-options" data-id="${field.id}" title="Optionen bearbeiten" aria-label="Optionen von ${escapeHtml(field.name)} bearbeiten">✎</button>` : '';
+        const chips = select && !editing ? `<div class="field-option-chips">${field.options.map(option => `<span class="field-option-chip">${escapeHtml(option)}</span>`).join('')}</div>` : '';
+        const editor = editing ? `<div class="field-options-editor" data-field-id="${field.id}">${renderOptionEditor(field.options, true)}<div class="inline-submit"><button type="button" class="secondary-button" data-action="cancel-field-options">Abbrechen</button><button type="button" class="primary-button" data-action="save-field-options" data-id="${field.id}">Optionen speichern</button></div></div>` : '';
+        return `<div class="field-list-item ${editing ? 'editing' : ''}"><div class="field-list-row"><strong>${escapeHtml(field.name)}</strong><span>${{ Text: 'Text', Select: 'Auswahl', Number: 'Zahl', Date: 'Datum', Boolean: 'Ja / Nein' }[field.type]}</span>${edit}<button type="button" class="icon-button" data-action="delete-field" data-id="${field.id}" title="Feld löschen" aria-label="${escapeHtml(field.name)} löschen">×</button></div>${chips}${editor}</div>`;
+    }).join('') || '<p class="helper-text">Noch keine eigenen Felder.</p>';
+}
+
+function resetFieldForm() {
+    $('field-form').reset();
+    $('field-options').innerHTML = renderOptionEditor();
+    $('field-options-wrap').hidden = true;
+}
+
 function openFieldDialog() {
     $('field-form-error').textContent = '';
-    $('field-list').innerHTML = workspace.customFields.map(field => `<div class="field-list-item"><strong>${escapeHtml(field.name)}</strong><span>${{ Text: 'Text', Select: 'Auswahl', Number: 'Zahl', Date: 'Datum', Boolean: 'Ja / Nein' }[field.type]}</span><button type="button" class="icon-button" data-action="delete-field" data-id="${field.id}" title="Feld löschen" aria-label="${escapeHtml(field.name)} löschen">×</button></div>`).join('') || '<p class="helper-text">Noch keine eigenen Felder.</p>';
+    editingFieldId = null;
+    renderFieldList();
+    if (!$('field-options').firstChild) resetFieldForm();
     $('field-dialog').showModal();
 }
 
 async function saveField(event) {
     event.preventDefault(); $('field-form-error').textContent = '';
     const previousValues = drawerFieldValues();
-    const payload = { name: $('field-name').value.trim(), type: $('field-type').value,
-        options: $('field-options').value.split('\n').map(item => item.trim()).filter(Boolean) };
+    const type = $('field-type').value;
+    const payload = { name: $('field-name').value.trim(), type,
+        options: type === 'Select' ? readOptions($('field-options')).map(option => option.value) : [] };
     try {
         await api('/api/fields', { method: 'POST', body: JSON.stringify(payload) });
-        $('field-dialog').close(); $('field-form').reset(); await loadWorkspace();
+        $('field-dialog').close(); resetFieldForm(); await loadWorkspace();
         refreshDrawerFields(previousValues);
         notify('Feld erstellt.');
     } catch (error) { showError('field-form-error', error); }
+}
+
+async function saveFieldOptions(id) {
+    const field = workspace.customFields.find(item => item.id === id);
+    const editor = $('field-list').querySelector(`.field-options-editor[data-field-id="${id}"] .option-editor`);
+    if (!field || !editor) return;
+    const options = readOptions(editor);
+    const kept = new Set(options.map(option => option.original));
+    const inUse = field.options.filter(option => !kept.has(option))
+        .map(option => [option, workspace.items.filter(item => item.fields[id] === option).length])
+        .filter(([, count]) => count > 0);
+    if (inUse.length && !confirm(`Diese entfernten Optionen werden noch verwendet:\n${inUse.map(([option, count]) => `„${option}“ – ${count} ${count === 1 ? 'Eintrag' : 'Einträge'}`).join('\n')}\n\nDie Werte werden bei diesen Einträgen gelöscht. Fortfahren?`)) return;
+    const previousValues = drawerFieldValues();
+    try {
+        await api(`/api/fields/${id}/options`, { method: 'PUT', body: JSON.stringify({ options }) });
+        // Carry a renamed option over into the open drawer so saving it doesn't clear the value.
+        const renamed = options.find(option => option.original !== null && option.original === previousValues[id]);
+        if (renamed) previousValues[id] = renamed.value;
+        editingFieldId = null;
+        await loadWorkspace();
+        renderFieldList();
+        refreshDrawerFields(previousValues);
+        notify('Optionen gespeichert.');
+    } catch (error) { editor.querySelector('.option-error').textContent = error.message; }
 }
 
 async function deleteField(id) {
@@ -388,6 +466,9 @@ document.addEventListener('click', async event => {
             render(); break;
         case 'remove-filter': action.closest('.filter-row').remove(); break;
         case 'delete-field': await deleteField(action.dataset.id); break;
+        case 'edit-field-options': editingFieldId = action.dataset.id; renderFieldList(); $('field-list').querySelector('.option-editor .option-new')?.focus(); break;
+        case 'cancel-field-options': editingFieldId = null; renderFieldList(); break;
+        case 'save-field-options': await saveFieldOptions(action.dataset.id); break;
     }
 });
 
@@ -446,6 +527,7 @@ $('add-filter-button').addEventListener('click', () => addFilterRow());
 $('view-form').addEventListener('submit', saveView);
 $('delete-view-button').addEventListener('click', deleteView);
 $('field-form').addEventListener('submit', saveField);
+initializeOptionEditors($('field-dialog'));
 $('field-type').addEventListener('change', () => $('field-options-wrap').hidden = $('field-type').value !== 'Select');
 document.addEventListener('change', event => {
     if (event.target.matches('[data-inline-field]')) saveInlineField(event.target);
@@ -456,8 +538,11 @@ document.addEventListener('change', event => {
     if (event.target.matches('.filter-field, .filter-operator')) {
         const row = event.target.closest('.filter-row');
         const empty = ['isEmpty', 'isNotEmpty'].includes(row.querySelector('.filter-operator').value);
-        row.querySelector('.filter-value').disabled = empty;
+        setFilterValueDisabled(row.querySelector('.filter-value'), empty);
     }
+    if (event.target.matches('.filter-date-mode'))
+        event.target.closest('.filter-date').querySelector('.filter-date-input').hidden = !!event.target.value;
+    if (event.target.matches('#config-sort-by')) updateGroupingSettings();
 });
 document.querySelectorAll('.dialog-close').forEach(button => button.addEventListener('click', () => $(button.dataset.dialog).close()));
 document.addEventListener('keydown', event => {

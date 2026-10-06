@@ -43,6 +43,11 @@ Die Zugangsdaten der automatisch angelegten Datenbank werden lokal unter `.local
 - Gespeicherte Ansichten für Baum/Tabelle, Kanban, Kalender und Zeitachse
 - Pro Ansicht auswählbare sichtbare Felder und kombinierbare Filter, auch auf eigene Felder
 - Gespeicherte Gruppierung nach Standard- oder eigenem Feld für Baum/Tabelle, Kanban und Zeitachse; Gruppen lassen sich einzeln ein- und ausklappen
+- Gespeicherte Sortierung pro Ansicht (auf- oder absteigend, leere Werte am Ende); im Baum wird innerhalb jeder Ebene sortiert, ohne Sortierung gilt die manuelle Reihenfolge
+- Pro Ansicht einstellbar: erledigte Aufgaben ausblenden
+- Datumsfilter mit relativen Werten wie „Heute“ oder „In 7 Tagen“, die sich täglich mitbewegen; die Ansicht „Anstehend“ zeigt damit offene Aufgaben, die überfällig oder in den nächsten 7 Tagen fällig sind
+- Überfällige und heute fällige offene Aufgaben werden in allen Darstellungen farblich hervorgehoben
+- Eigene Felder direkt in der Baum-/Tabellenansicht bearbeiten; Optionen von Auswahlfeldern einzeln anlegen, umbenennen und löschen
 - Statuswechsel im Kanban per Drag & Drop
 - Aufgabenbalken in der Zeitachse verschieben oder über Griffe am Anfang und Ende verlängern/verkürzen; Tagesraster, Datumsvorschau und automatische Speicherung
 - Zeitachse mit wählbaren Intervallen Woche, Monat und 3 Monate; die Auswahl bleibt im Browser gespeichert

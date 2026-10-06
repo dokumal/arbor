@@ -22,7 +22,10 @@ public sealed class ViewConfigurationsController(AppDbContext db) : ControllerBa
             SortOrder = (await db.ViewConfigurations.MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1,
             FiltersJson = JsonSerializer.Serialize(request.Filters),
             VisibleFieldsJson = JsonSerializer.Serialize(request.VisibleFields.Distinct()),
-            GroupByField = request.GroupByField
+            GroupByField = request.GroupByField,
+            SortField = request.SortField,
+            SortDescending = request.SortDescending,
+            HideCompleted = request.HideCompleted
         };
         db.ViewConfigurations.Add(view);
         await db.SaveChangesAsync(cancellationToken);
@@ -41,6 +44,9 @@ public sealed class ViewConfigurationsController(AppDbContext db) : ControllerBa
         view.FiltersJson = JsonSerializer.Serialize(request.Filters);
         view.VisibleFieldsJson = JsonSerializer.Serialize(request.VisibleFields.Distinct());
         view.GroupByField = request.GroupByField;
+        view.SortField = request.SortField;
+        view.SortDescending = request.SortDescending;
+        view.HideCompleted = request.HideCompleted;
         await db.SaveChangesAsync(cancellationToken);
         return NoContent();
     }
@@ -71,6 +77,9 @@ public sealed class ViewConfigurationsController(AppDbContext db) : ControllerBa
         if (request.GroupByField is not null &&
             (!fields.Contains(request.GroupByField) || request.Kind == ViewKind.Calendar))
             return "Das Gruppierungsfeld ist für diese Darstellung ungültig.";
+        if (request.SortField is not null &&
+            (!fields.Contains(request.SortField) || request.SortField == "description" || request.Kind == ViewKind.Calendar))
+            return "Das Sortierfeld ist für diese Darstellung ungültig.";
         var operators = new HashSet<string> { "equals", "notEquals", "contains", "isEmpty",
             "isNotEmpty", "before", "after", "greaterThan", "lessThan" };
         if (request.Filters.Any(x => !operators.Contains(x.Operator) || x.Value is null || x.Value.Length > 500))

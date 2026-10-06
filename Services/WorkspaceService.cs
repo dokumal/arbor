@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using QuireClone.Contracts;
 using QuireClone.Data;
@@ -7,7 +8,7 @@ using QuireClone.Domain;
 
 namespace QuireClone.Services;
 
-public sealed class WorkspaceService(AppDbContext db)
+public sealed partial class WorkspaceService(AppDbContext db)
 {
     public async Task<WorkspaceDto> GetAsync(Guid? viewId, CancellationToken cancellationToken)
     {
@@ -24,7 +25,9 @@ public sealed class WorkspaceService(AppDbContext db)
         var itemDtos = items.Select(x => new WorkspaceItemDto(x.Id, x.Kind, x.Title, x.Description,
             x.ParentId, x.Status, x.StartDate, x.DueDate, x.SortOrder,
             x.UpdatedAt, x.FieldValues.ToDictionary(v => v.FieldId, v => v.Value))).ToList();
-        var matching = itemDtos.Where(x => activeFilters.All(f => Matches(x, f)))
+        var hideCompleted = selectedView?.HideCompleted == true;
+        var matching = itemDtos.Where(x => activeFilters.All(f => Matches(x, f)) &&
+                !(hideCompleted && x.Kind == WorkspaceItemKind.Task && x.Status == Domain.TaskStatus.Done))
             .Select(x => x.Id).ToList();
 
         return new WorkspaceDto(itemDtos, matching,
@@ -32,7 +35,8 @@ public sealed class WorkspaceService(AppDbContext db)
                 Deserialize<List<string>>(x.OptionsJson), x.SortOrder)).ToList(),
             views.Select(x => new ViewConfigurationDto(x.Id, x.Name, x.Kind,
                 Deserialize<List<ViewFilter>>(x.FiltersJson),
-                Deserialize<List<string>>(x.VisibleFieldsJson), x.GroupByField, x.SortOrder)).ToList(),
+                Deserialize<List<string>>(x.VisibleFieldsJson), x.GroupByField, x.SortField,
+                x.SortDescending, x.HideCompleted, x.SortOrder)).ToList(),
             links.Select(x => new ItemLinkDto(x.TaskId, x.DocumentId)).ToList());
     }
 
@@ -55,7 +59,7 @@ public sealed class WorkspaceService(AppDbContext db)
             _ => null
         };
         var comparison = StringComparison.OrdinalIgnoreCase;
-        var expected = filter.Value.Trim();
+        var expected = ResolveRelativeDate(filter.Value.Trim());
         return filter.Operator switch
         {
             "isEmpty" => string.IsNullOrWhiteSpace(value),
@@ -70,6 +74,19 @@ public sealed class WorkspaceService(AppDbContext db)
             _ => false
         };
     }
+
+    // Saved filters may use "@today", "@today+7" or "@today-3" so they stay current from day to day.
+    private static string ResolveRelativeDate(string value)
+    {
+        var match = RelativeDate().Match(value);
+        if (!match.Success) return value;
+        var days = match.Groups[2].Success ? int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture) : 0;
+        if (match.Groups[1].Value == "-") days = -days;
+        return DateOnly.FromDateTime(DateTime.Now).AddDays(days).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    }
+
+    [GeneratedRegex(@"^@today(?:([+-])(\d{1,4}))?$")]
+    private static partial Regex RelativeDate();
 
     private static bool CompareNumbers(string? value, string expected, bool greater)
     {

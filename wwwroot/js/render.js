@@ -46,6 +46,48 @@ export function formatDate(value, options = { day: '2-digit', month: 'short', ye
     return new Intl.DateTimeFormat('de-DE', { timeZone: 'UTC', ...options }).format(new Date(`${value}T00:00:00Z`));
 }
 
+const localToday = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+// 'overdue' or 'today' for open tasks, used to highlight due dates in every view.
+export function dueState(task, today = localToday()) {
+    if (!isTask(task) || task.status === 'Done' || !task.dueDate) return null;
+    return task.dueDate < today ? 'overdue' : task.dueDate === today ? 'today' : null;
+}
+const dueTitle = { overdue: 'Überfällig', today: 'Heute fällig' };
+
+function sortValue(item, key, definitions) {
+    if (key === 'status') return isTask(item) ? Object.keys(statuses).indexOf(item.status) : null;
+    if (key === 'kind') return Object.keys(itemKinds).indexOf(item.kind);
+    if (!key.startsWith('field:')) return item[key] || null;
+    const field = definitions.find(definition => definition.id === key.slice(6));
+    const raw = item.fields[key.slice(6)];
+    if (!raw) return null;
+    if (field?.type === 'Number') return Number.parseFloat(raw);
+    if (field?.type === 'Boolean') return raw === 'true' ? 0 : 1;
+    if (field?.type === 'Select') {
+        const index = field.options.indexOf(raw);
+        return index < 0 ? field.options.length : index;
+    }
+    return raw;
+}
+
+// Sorts by the view's sort field; empty values always come last and ties keep the manual order.
+export function sortItems(items, view, definitions) {
+    if (!view.sortField) return items;
+    const values = new Map(items.map(item => [item.id, sortValue(item, view.sortField, definitions)]));
+    const direction = view.sortDescending ? -1 : 1;
+    return [...items].sort((a, b) => {
+        const left = values.get(a.id), right = values.get(b.id);
+        if (left === null || right === null) return (left === null) - (right === null);
+        const result = typeof left === 'number' && typeof right === 'number' ? left - right
+            : String(left).localeCompare(String(right), 'de', { numeric: true });
+        return result * direction;
+    });
+}
+
 const empty = (filtered = false) => `<div class="empty-state"><h3>${filtered ? 'Keine passenden Einträge' : 'Noch keine Einträge'}</h3><p>${filtered ? 'Passe die Suche oder die Filter dieser Ansicht an.' : 'Erstelle einen Ordner, eine Aufgabe oder ein Dokument.'}</p>${filtered ? '' : '<div class="empty-actions"><button class="secondary-button" data-action="new-folder">＋ Ordner</button><button class="primary-button" data-action="new-task">＋ Aufgabe</button><button class="secondary-button" data-action="new-document">＋ Dokument</button></div>'}</div>`;
 
 const createTaskIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h9M3 12h7M3 18h9M18 9v8M14 13h8"/></svg>';
@@ -102,9 +144,9 @@ export function renderView(data, view, ui) {
     if (!view) return empty();
     const matching = new Set(data.matchingItemIds);
     const matchingItems = data.items.filter(task => matching.has(task.id));
-    const tasks = matchingItems.filter(isTask).map(task => ({ ...task,
+    const tasks = sortItems(matchingItems.filter(isTask), view, data.customFields).map(task => ({ ...task,
         relatedDocuments: relatedItems(data.items, data.links, task.id).map(relation => relation.item) }));
-    if (!matchingItems.length && view.kind !== 'Timeline') return empty(view.filters.length > 0 || !!data.searchQuery);
+    if (!matchingItems.length && view.kind !== 'Timeline') return empty(view.filters.length > 0 || view.hideCompleted || !!data.searchQuery);
     if (view.kind !== 'Tree' && !tasks.length && view.kind !== 'Timeline')
         return '<div class="empty-state"><h3>Keine passenden Aufgaben</h3><p>Ordner und Dokumente findest du in der Baumansicht.</p><button class="secondary-button" data-action="select-kind" data-kind="Tree">Zum gemeinsamen Baum</button></div>';
     switch (view.kind) {
@@ -136,6 +178,7 @@ function renderTree(allTasks, matching, view, definitions, expanded, selectedId,
             if (!children.has(parentId)) children.set(parentId, []);
             children.get(parentId).push(task);
         }
+        if (view.sortField) for (const [parentId, list] of children) children.set(parentId, sortItems(list, view, definitions));
         const rows = [];
         const walk = (task, depth) => {
             const subs = children.get(task.id) || [];
@@ -156,7 +199,8 @@ function renderTree(allTasks, matching, view, definitions, expanded, selectedId,
 function renderTreeCell(task, key, definitions) {
     const field = key.startsWith('field:') && !isFolder(task) ? definitions.find(item => item.id === key.slice(6)) : null;
     if (field) return `<div class="cell-edit">${inlineFieldInput(task, field)}</div>`;
-    return `<div class="cell-muted">${escapeHtml(fieldValue(task, key, definitions)) || '—'}</div>`;
+    const due = key === 'dueDate' ? dueState(task) : null;
+    return `<div class="cell-muted ${due ? `due-${due}` : ''}"${due ? ` title="${dueTitle[due]}"` : ''}>${escapeHtml(fieldValue(task, key, definitions)) || '—'}</div>`;
 }
 
 // Custom fields are edited directly in the tree; app.js saves them on change.
@@ -177,7 +221,7 @@ function renderKanbanBoard(tasks, view, definitions, groupKey, columnStatuses = 
     return `<div class="kanban-board ${columnStatuses.length === 1 ? 'single-status' : ''}">${columnStatuses.map(status => {
         const label = statuses[status];
         const columnTasks = tasks.filter(task => task.status === status);
-        return `<section class="kanban-column" data-status="${status}"${groupAttribute}><div class="column-heading"><span class="status-dot ${status}"></span>${label}<span class="column-count">${columnTasks.length}</span></div><div class="column-body">${columnTasks.map(task => `<article class="kanban-card" draggable="true" data-action="open-task" data-id="${task.id}"${groupAttribute}><div class="card-title">${escapeHtml(task.title)}</div>${view.visibleFields.includes('description') && task.description ? `<p class="card-description">${escapeHtml(descriptionText(task.description))}</p>` : ''}<div class="card-meta">${view.visibleFields.filter(key => !['title', 'status', 'description'].includes(key)).map(key => fieldValue(task, key, definitions) ? `<span>${escapeHtml(fieldLabel(key, definitions))}: ${escapeHtml(fieldValue(task, key, definitions))}</span>` : '').join('')}</div>${documentRefs(task)}</article>`).join('')}${groupKey === null || view.groupByField === 'status' ? `<button class="add-column-task" data-action="new-task" data-status="${status}">＋ Aufgabe hinzufügen</button>` : ''}</div></section>`;
+        return `<section class="kanban-column" data-status="${status}"${groupAttribute}><div class="column-heading"><span class="status-dot ${status}"></span>${label}<span class="column-count">${columnTasks.length}</span></div><div class="column-body">${columnTasks.map(task => `<article class="kanban-card" draggable="true" data-action="open-task" data-id="${task.id}"${groupAttribute}><div class="card-title">${escapeHtml(task.title)}</div>${view.visibleFields.includes('description') && task.description ? `<p class="card-description">${escapeHtml(descriptionText(task.description))}</p>` : ''}<div class="card-meta">${view.visibleFields.filter(key => !['title', 'status', 'description'].includes(key)).map(key => fieldValue(task, key, definitions) ? `<span${key === 'dueDate' && dueState(task) ? ` class="due-${dueState(task)}"` : ''}>${escapeHtml(fieldLabel(key, definitions))}: ${escapeHtml(fieldValue(task, key, definitions))}</span>` : '').join('')}</div>${documentRefs(task)}</article>`).join('')}${groupKey === null || view.groupByField === 'status' ? `<button class="add-column-task" data-action="new-task" data-status="${status}">＋ Aufgabe hinzufügen</button>` : ''}</div></section>`;
     }).join('')}</div>`;
 }
 
@@ -231,7 +275,7 @@ function renderCalendar(tasks, view, definitions, monthValue) {
             if (item.task.relatedDocuments.length) details.push(`📄 ${item.task.relatedDocuments.length}`);
             const tooltip = [item.task.title, `${formatDate(new Date(item.from).toISOString().slice(0, 10))} – ${formatDate(new Date(item.to).toISOString().slice(0, 10))}`, ...details,
                 ...item.task.relatedDocuments.map(doc => `Dokument: ${doc.title}`)].join(' · ');
-            return `<button class="calendar-event ${item.from < weekStart ? 'continues-before' : ''} ${item.to > weekEnd ? 'continues-after' : ''}" style="grid-column:${item.column + 1}/span ${item.lastColumn - item.column + 1};grid-row:${lane + 1}" data-action="open-task" data-id="${item.task.id}" title="${escapeHtml(tooltip)}"><strong>${escapeHtml(item.task.title)}</strong>${details.length ? `<small>${escapeHtml(details.join(' · '))}</small>` : ''}</button>`;
+            return `<button class="calendar-event ${dueState(item.task) ? `due-${dueState(item.task)}` : ''} ${item.from < weekStart ? 'continues-before' : ''} ${item.to > weekEnd ? 'continues-after' : ''}" style="grid-column:${item.column + 1}/span ${item.lastColumn - item.column + 1};grid-row:${lane + 1}" data-action="open-task" data-id="${item.task.id}" title="${escapeHtml(tooltip)}"><strong>${escapeHtml(item.task.title)}</strong>${details.length ? `<small>${escapeHtml(details.join(' · '))}</small>` : ''}</button>`;
         }).join('');
         return `<div class="calendar-week" style="min-height:${Math.max(118, 42 + laneEnds.length * 45)}px">${days}<div class="calendar-week-events" style="grid-template-rows:repeat(${laneEnds.length},40px)">${bars}</div></div>`;
     }).join('');
@@ -252,14 +296,14 @@ function renderTimeline(tasks, view, definitions, anchor, interval, collapsed) {
             const left = Math.max(0, (taskStart - start) / 86400000);
             const right = Math.min(range.days, (taskEnd - start) / 86400000 + 1);
             const tooltip = escapeHtml(`${task.title} · ${formatDate(task.startDate || task.dueDate)} – ${formatDate(task.dueDate || task.startDate)}`);
-            bar = right > left ? `<div class="timeline-bar ${task.status}" style="left:${left / range.days * 100}%;width:${Math.max((right - left) / range.days * 100, 1.5)}%" data-id="${task.id}" title="${tooltip}">${taskStart >= start ? '<button type="button" class="timeline-resize start" data-edge="start" title="Startdatum ändern" aria-label="Startdatum ändern"></button>' : ''}<button type="button" class="timeline-body" data-action="open-task" data-id="${task.id}">${escapeHtml(task.title)}</button>${taskEnd < end ? '<button type="button" class="timeline-resize end" data-edge="end" title="Enddatum ändern" aria-label="Enddatum ändern"></button>' : ''}</div>` : '';
+            bar = right > left ? `<div class="timeline-bar ${task.status} ${dueState(task) ? `due-${dueState(task)}` : ''}" style="left:${left / range.days * 100}%;width:${Math.max((right - left) / range.days * 100, 1.5)}%" data-id="${task.id}" title="${tooltip}">${taskStart >= start ? '<button type="button" class="timeline-resize start" data-edge="start" title="Startdatum ändern" aria-label="Startdatum ändern"></button>' : ''}<button type="button" class="timeline-body" data-action="open-task" data-id="${task.id}">${escapeHtml(task.title)}</button>${taskEnd < end ? '<button type="button" class="timeline-resize end" data-edge="end" title="Enddatum ändern" aria-label="Enddatum ändern"></button>' : ''}</div>` : '';
         }
         const extras = view.visibleFields.filter(key => key !== 'title').map(key => fieldValue(task, key, definitions)).filter(Boolean);
         if (task.relatedDocuments.length) extras.unshift(`📄 ${task.relatedDocuments.length} ${task.relatedDocuments.length === 1 ? 'Dokument' : 'Dokumente'}`);
         return `<div class="timeline-row"><div class="timeline-label" data-action="open-task" data-id="${task.id}" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}${extras.length ? `<span class="cell-muted"> · ${escapeHtml(extras.join(', '))}</span>` : ''}</div><div class="timeline-track">${bar}</div></div>`;
     }).join('');
     const groups = groupTasks(tasks, view, definitions);
-    const body = !tasks.length ? empty(view.filters.length > 0) : groups ? groups.map(group => `<div class="timeline-group-heading">${groupHeading(view, group, collapsed)}</div>${groupIsCollapsed(view, group, collapsed) ? '' : renderRows(group.tasks)}`).join('') : renderRows(tasks);
+    const body = !tasks.length ? empty(view.filters.length > 0 || view.hideCompleted) : groups ? groups.map(group => `<div class="timeline-group-heading">${groupHeading(view, group, collapsed)}</div>${groupIsCollapsed(view, group, collapsed) ? '' : renderRows(group.tasks)}`).join('') : renderRows(tasks);
     const endLabel = new Date(end); endLabel.setUTCDate(endLabel.getUTCDate() - 1);
     const intervalButtons = Object.entries(timelineIntervals).map(([key, label]) => `<button type="button" class="timeline-interval-button ${key === interval ? 'active' : ''}" data-action="timeline-interval" data-interval="${key}" aria-pressed="${key === interval}">${label}</button>`).join('');
     return `<div class="timeline-wrap" data-start="${range.start}" data-days="${range.days}"><div class="date-nav timeline-nav"><strong>${formatDate(range.start)} – ${formatDate(endLabel.toISOString().slice(0, 10))}</strong><button data-action="timeline-prev" aria-label="Vorheriger Zeitraum">‹</button><button data-action="timeline-next" aria-label="Nächster Zeitraum">›</button><div class="timeline-intervals" role="group" aria-label="Zeitintervall">${intervalButtons}</div></div><div class="timeline-grid" style="--timeline-columns:${range.columns.map(column => `${column.days}fr`).join(' ')};--tick-width:${100 / range.days * (interval === 'ThreeMonths' ? 7 : 1)}%"><div class="timeline-heading"><span>Aufgabe</span><div class="timeline-weeks ${interval === 'Month' ? 'timeline-day-headings' : ''}">${headings}</div></div>${body}</div></div>`;

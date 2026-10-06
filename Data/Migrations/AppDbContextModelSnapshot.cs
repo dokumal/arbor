@@ -102,6 +102,9 @@ namespace QuireClone.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<bool>("HideCompleted")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -111,6 +114,13 @@ namespace QuireClone.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("SortDescending")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SortField")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");

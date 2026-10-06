@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { escapeHtml, statuses } from './render.js?v=inline-fields';
+import { escapeHtml, statuses } from './render.js?v=view-sorting';
 import { relatedItems, isDocument, isFolder, itemIcon } from './item-relations.js?v=folders';
 
 export function initializeItemLinks(getWorkspace, refreshWorkspace, notify) {

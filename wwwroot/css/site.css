@@ -141,6 +141,17 @@ select.inline-field:focus{cursor:pointer}
 .timeline-bar.Todo{background:#8aaac0}
 .timeline-bar:hover{filter:brightness(.93)}
 .timeline-bar{padding:0;min-width:14px;display:flex;touch-action:none;user-select:none}
+.due-overdue,.due-today{font-weight:650}
+.cell-muted.due-overdue,.card-meta span.due-overdue{color:#c2412d}
+.cell-muted.due-today,.card-meta span.due-today{color:#b26a00}
+.card-meta span.due-overdue{background:#fdeeeb}
+.card-meta span.due-today{background:#fdf4e3}
+.calendar-event.due-overdue{background:#fdeeeb;color:#9c3423;border-left-color:#d4553f}
+.calendar-event.due-overdue:hover{background:#f9e0db}
+.calendar-event.due-today{background:#fdf4e3;color:#8a5300;border-left-color:#e09a2a}
+.calendar-event.due-today:hover{background:#f9ead0}
+.timeline-bar.due-overdue{background:#d4634f}
+.timeline-bar.due-today{background:#e0a03a}
 .timeline-body{border:0;background:transparent;color:inherit;font:inherit;min-width:0;width:100%;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;cursor:grab;touch-action:none}
 .timeline-resize{position:absolute;top:0;bottom:0;width:6px;border:0;background:#ffffff30;padding:0;cursor:ew-resize;touch-action:none;z-index:1}
 .timeline-resize.start{left:0}
@@ -201,6 +212,11 @@ select.inline-field:focus{cursor:pointer}
 .checkbox-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
 .checkbox-grid label{display:flex;align-items:center;gap:8px;border:1px solid #e3ebe4;padding:9px 10px;border-radius:7px;font-size:12px;color:#405647}
 .checkbox-grid input{width:auto;min-height:auto;accent-color:#0a9162}
+.sort-controls{display:grid;grid-template-columns:1fr 160px;gap:8px}
+.checkbox-setting{display:flex;align-items:center;gap:9px;margin:4px 0 6px;border:1px solid #e3ebe4;padding:10px 11px;border-radius:7px;font-size:13px;color:#405647;cursor:pointer}
+.modal .checkbox-setting input{width:auto;min-height:auto;accent-color:#0a9162}
+.filter-date{display:grid;gap:6px;min-width:0}
+.filter-date select,.filter-date input{min-width:0}
 .filter-rows{display:grid;gap:8px}
 .filter-row{display:grid;grid-template-columns:1.2fr 1fr 1fr 28px;gap:6px;align-items:center}
 .filter-row input,.filter-row select{min-width:0}
@@ -208,9 +224,29 @@ select.inline-field:focus{cursor:pointer}
 .filter-remove:hover{color:#b44040}
 .narrow-modal{width:min(480px,calc(100vw - 30px))}
 .field-list{display:grid;gap:6px;margin:15px 0 25px}
-.field-list-item{display:flex;align-items:center;gap:9px;border:1px solid #e7eee8;padding:9px 11px;border-radius:7px;font-size:12px}
-.field-list-item strong{flex:1}
-.field-list-item span{color:#9ba99f}
+.field-list-item{border:1px solid #e7eee8;padding:9px 11px;border-radius:7px;font-size:12px}
+.field-list-item.editing{border-color:#cfe3d6;background:#fafdfb}
+.field-list-row{display:flex;align-items:center;gap:9px}
+.field-list-row strong{flex:1}
+.field-list-row span{color:#9ba99f}
+.field-list-row .icon-button{width:30px;height:30px;font-size:16px}
+.field-option-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.field-option-chip{background:#eff5f1;border:1px solid #e3ede6;padding:3px 8px;border-radius:6px;color:#486657;font-size:11px;font-weight:600}
+.field-options-editor{margin-top:10px}
+.field-options-editor .inline-submit{margin-top:10px}
+.option-editor{display:grid;gap:8px}
+.option-list{display:grid;gap:6px}
+.option-list:empty{display:none}
+.option-row{display:flex;align-items:center;gap:8px}
+.option-bullet{width:8px;height:8px;border-radius:50%;background:#9fd2b6;flex:none}
+.modal .option-row input{min-height:34px;padding:6px 10px}
+.option-remove{flex:none;border:0;background:transparent;color:#9aa69e;font-size:18px;width:28px;height:28px;border-radius:6px}
+.option-remove:hover{color:#b44040;background:#fbeeee}
+.option-add{display:flex;gap:8px}
+.modal .option-add input{min-height:36px;padding:7px 10px;border-style:dashed}
+.option-add .secondary-button{flex:none;white-space:nowrap}
+.option-error{margin:0;min-height:0}
+.option-error:empty{display:none}
 .inline-submit{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:18px}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#183b2a;color:white;padding:11px 17px;border-radius:8px;z-index:50;box-shadow:0 8px 22px #183b2a40;font-size:13px}
 @media(max-width:850px){.page-meta{display:none}
@@ -235,7 +271,7 @@ select.inline-field:focus{cursor:pointer}
 .field-grid,.custom-fields{grid-template-columns:1fr}
 .checkbox-grid{grid-template-columns:1fr 1fr}
 .filter-row{grid-template-columns:1fr 1fr 28px}
-.filter-row input{grid-column:1/3}
+.filter-row>.filter-value{grid-column:1/3}
 .filter-remove{grid-row:1;grid-column:3}
 .modal-header,.modal-footer{padding-left:18px;padding-right:18px}
 .modal-body{padding-left:18px;padding-right:18px}

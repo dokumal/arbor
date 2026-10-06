@@ -14,7 +14,8 @@ public sealed record CustomFieldDto(Guid Id, string Name, CustomFieldType Type,
 public sealed record ViewFilter(string Field, string Operator, string Value);
 
 public sealed record ViewConfigurationDto(Guid Id, string Name, ViewKind Kind,
-    List<ViewFilter> Filters, List<string> VisibleFields, string? GroupByField, int SortOrder);
+    List<ViewFilter> Filters, List<string> VisibleFields, string? GroupByField, string? SortField,
+    bool SortDescending, bool HideCompleted, int SortOrder);
 
 public sealed record ItemLinkDto(Guid TaskId, Guid DocumentId);
 
@@ -64,6 +65,18 @@ public sealed class CustomFieldSaveRequest
     public List<string> Options { get; set; } = [];
 }
 
+public sealed class SelectOptionChange
+{
+    // The option's current value, or null for a newly added option.
+    public string? Original { get; set; }
+    public string Value { get; set; } = "";
+}
+
+public sealed class CustomFieldOptionsRequest
+{
+    public List<SelectOptionChange> Options { get; set; } = [];
+}
+
 public sealed class ViewConfigurationSaveRequest
 {
     [Required, StringLength(100, MinimumLength = 1)]
@@ -72,4 +85,7 @@ public sealed class ViewConfigurationSaveRequest
     public List<ViewFilter> Filters { get; set; } = [];
     public List<string> VisibleFields { get; set; } = [];
     public string? GroupByField { get; set; }
+    public string? SortField { get; set; }
+    public bool SortDescending { get; set; }
+    public bool HideCompleted { get; set; }
 }

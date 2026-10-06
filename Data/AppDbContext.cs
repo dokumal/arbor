@@ -65,6 +65,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.FiltersJson).HasColumnType("jsonb");
             entity.Property(x => x.VisibleFieldsJson).HasColumnType("jsonb");
             entity.Property(x => x.GroupByField).HasMaxLength(64);
+            entity.Property(x => x.SortField).HasMaxLength(64);
         });
     }
 }
