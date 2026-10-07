@@ -15,7 +15,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     {
         modelBuilder.Entity<WorkspaceItem>(entity =>
         {
-            // Keep the existing table and columns so stored tasks retain their IDs and hierarchy.
+            // Table and column names date from when every item was a task.
             entity.ToTable("Tasks");
             entity.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
             entity.Property(x => x.ParentId).HasColumnName("ParentTaskId");
@@ -34,7 +34,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.HasIndex(x => x.Name).IsUnique();
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(16);
-            entity.Property(x => x.OptionsJson).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<ItemFieldValue>(entity =>
@@ -62,8 +61,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
-            entity.Property(x => x.FiltersJson).HasColumnType("jsonb");
-            entity.Property(x => x.VisibleFieldsJson).HasColumnType("jsonb");
             entity.Property(x => x.GroupByField).HasMaxLength(64);
             entity.Property(x => x.SortField).HasMaxLength(64);
         });

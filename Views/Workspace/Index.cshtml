@@ -2,39 +2,37 @@
     ViewData["Title"] = "Workspace";
 }
 @Html.AntiForgeryToken()
-<div class="app-shell">
-    <header class="topbar">
-        <div class="brand"><span class="brand-mark">✳</span><span>arbor</span><span class="brand-divider"></span><span class="workspace-name">Mein Workspace</span></div>
-        <div class="top-actions">
-            <button class="icon-button" id="field-manager-button" title="Benutzerdefinierte Felder" aria-label="Benutzerdefinierte Felder">⚙</button>
+@section TopActions {
+    <button class="quiet-button" id="field-manager-button" title="Eigene Felder verwalten"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Eigene Felder</span></button>
+}
+@section Scripts {
+    <script src="~/lib/suneditor/suneditor.min.js" asp-append-version="true"></script>
+    <script type="module" src="~/js/app.js" asp-append-version="true"></script>
+}
+<main>
+    <section class="page-heading">
+        <div><div class="eyebrow">WORKSPACE</div><h1>Aufgaben &amp; Dokumente</h1><p>Plane deine Arbeit und halte das zugehörige Wissen an einem Ort.</p></div>
+        <div class="page-meta"><span id="task-count">0 Aufgaben</span><span class="meta-dot"></span><span>Lokaler Workspace</span></div>
+    </section>
+    <section class="work-area" aria-label="Aufgabenansichten">
+        <div class="tabs-bar"><div id="view-tabs" class="view-tabs" role="tablist" aria-label="Darstellung"></div><div class="workspace-search"><label for="workspace-search">⌕</label><input id="workspace-search" type="search" aria-label="Workspace durchsuchen" placeholder="Einträge durchsuchen …" /></div></div>
+        <div class="config-bar">
+            <span class="config-bar-label">KONFIGURATIONEN</span>
+            <div id="config-tabs" class="config-tabs" role="tablist" aria-label="Gespeicherte Konfigurationen"></div>
+            <div class="config-create-actions" role="group" aria-label="Eintrag erstellen">
+                <button class="secondary-button" id="new-folder-button">＋ Ordner</button>
+                <button class="primary-button" id="new-task-button"><span>＋</span> Aufgabe</button>
+                <button class="secondary-button" id="new-document-button">＋ Dokument</button>
+            </div>
+            <button id="add-view-button" class="add-view-button" title="Neue Konfiguration" aria-label="Neue Konfiguration"><span class="add-view-icon">＋</span><span class="add-view-label">Neue Konfiguration</span></button>
         </div>
-    </header>
-    <main>
-        <section class="page-heading">
-            <div><div class="eyebrow">WORKSPACE</div><h1>Aufgaben &amp; Dokumente</h1><p>Plane deine Arbeit und halte das zugehörige Wissen an einem Ort.</p></div>
-            <div class="page-meta"><span id="task-count">0 Aufgaben</span><span class="meta-dot"></span><span>Lokaler Workspace</span></div>
-        </section>
-        <section class="work-area" aria-label="Aufgabenansichten">
-            <div class="workspace-search"><label for="workspace-search">⌕</label><input id="workspace-search" type="search" aria-label="Workspace durchsuchen" placeholder="Ordner, Aufgaben, Dokumente und eigene Felder durchsuchen …" /></div>
-            <div class="tabs-bar"><div id="view-tabs" class="view-tabs" role="tablist" aria-label="Darstellung"></div></div>
-            <div class="config-bar">
-                <span class="config-bar-label">KONFIGURATIONEN</span>
-                <div id="config-tabs" class="config-tabs" role="tablist" aria-label="Gespeicherte Konfigurationen"></div>
-                <div class="config-create-actions" role="group" aria-label="Eintrag erstellen">
-                    <button class="secondary-button" id="new-folder-button">＋ Ordner</button>
-                    <button class="primary-button" id="new-task-button"><span>＋</span> Aufgabe</button>
-                    <button class="secondary-button" id="new-document-button">＋ Dokument</button>
-                </div>
-                <button id="add-view-button" class="add-view-button" title="Neue Konfiguration" aria-label="Neue Konfiguration"><span class="add-view-icon">＋</span><span class="add-view-label">Neue Konfiguration</span></button>
-            </div>
-            <div class="toolbar">
-                <div class="toolbar-left"><span id="view-icon" class="view-icon"></span><div><div id="view-title" class="view-title"></div><div id="view-description" class="view-description"></div></div></div>
-                <div class="toolbar-actions"><span id="filter-summary" class="filter-summary"></span><button id="edit-view-button" class="quiet-button">⚙ <span>Konfiguration bearbeiten</span></button></div>
-            </div>
-            <div id="view-content" class="view-content" aria-live="polite"><div class="loading">Ansicht wird geladen …</div></div>
-        </section>
-    </main>
-</div>
+        <div class="toolbar">
+            <div class="toolbar-left"><span id="view-icon" class="view-icon"></span><div><div id="view-title" class="view-title"></div><div id="view-description" class="view-description"></div></div></div>
+            <div class="toolbar-actions"><span id="filter-summary" class="filter-summary"></span><button id="edit-view-button" class="quiet-button">⚙ <span>Konfiguration bearbeiten</span></button></div>
+        </div>
+        <div id="view-content" class="view-content" aria-live="polite"><div class="loading">Ansicht wird geladen …</div></div>
+    </section>
+</main>
 
 <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
 <aside id="task-drawer" class="task-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-caption" aria-hidden="true" hidden>

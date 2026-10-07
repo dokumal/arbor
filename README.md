@@ -1,32 +1,26 @@
 # Arbor – Aufgaben und Dokumente
 
-Eine ASP.NET Core MVC Anwendung mit Entity Framework Core und PostgreSQL. Die Oberfläche verwendet nur eigenes CSS und JavaScript. Es gibt derzeit keine Anmeldung; die App ist für den lokalen Betrieb gedacht.
+Eine ASP.NET Core MVC Anwendung mit Entity Framework Core und SQLite. Die Oberfläche verwendet nur eigenes CSS und JavaScript. Es gibt derzeit keine Anmeldung; die App ist für den lokalen Betrieb gedacht.
 
 ## Starten
 
-Voraussetzungen: .NET 10 SDK und eine lokale PostgreSQL-Installation mit `initdb` und `pg_ctl`. Auf Windows wird ein installiertes PostgreSQL unter `C:\Program Files\PostgreSQL` automatisch gefunden. Zum Starten reicht:
+Voraussetzung ist nur das .NET 10 SDK. Zum Starten reicht:
 
 ```powershell
 dotnet run
 ```
 
-Danach `http://localhost:5222` öffnen. Beim ersten Start legt die App unter `.local/postgres` eine eigene Datenbank an. Sie startet PostgreSQL bei jedem App-Start selbst und stoppt die von ihr gestartete Instanz beim Beenden. Die Daten bleiben in `.local/postgres/data` erhalten. Die EF Core Migration wird automatisch ausgeführt. Die Datenbank lauscht ausschließlich auf `127.0.0.1`.
+Danach `http://localhost:5222` öffnen. Beim ersten Start legt die App die Datenbank `.local/arbor.db` an, führt die EF Core Migration aus und erstellt Beispiel-Felder und -Ansichten. Bilder aus Beschreibungen landen in `.local/images`. Der Ordner `.local` ist von Git ausgeschlossen.
 
-Falls die PostgreSQL-Werkzeuge an einem anderen Ort liegen, vor `dotnet run` den bin-Ordner angeben:
+## Speicherorte
 
-```powershell
-$env:POSTGRES_BIN = 'C:\Pfad\zu\PostgreSQL\bin'
-dotnet run
-```
+Über **Einstellungen** oben rechts lassen sich der Pfad der Datenbank-Datei und der Bilder-Ordner ändern. Pfade können absolut oder relativ zum Programmordner sein; Umgebungsvariablen wie `%USERPROFILE%` werden aufgelöst. Die Auswahl wird in `.local/storage.json` gespeichert, nicht in der Datenbank selbst.
 
-Soll stattdessen eine bereits laufende PostgreSQL-Instanz verwendet werden, die Verbindungszeichenfolge überschreiben:
+- Liegt am neuen Datenbank-Pfad noch keine Datei, wird die aktuelle Datenbank dorthin verschoben.
+- Liegt dort bereits eine Arbor-Datenbank, wird sie verwendet (und bei Bedarf migriert); die bisherige Datei bleibt am alten Ort. Dateien anderer Programme werden abgelehnt.
+- Bilder werden in den neuen Ordner verschoben. Dabei werden nur Dateien angefasst, die die App selbst angelegt hat.
 
-```powershell
-$env:ConnectionStrings__Postgres = 'Host=localhost;Port=5432;Database=quireclone;Username=MEIN_BENUTZER;Password=MEIN_PASSWORT'
-dotnet run
-```
-
-Die Zugangsdaten der automatisch angelegten Datenbank werden lokal unter `.local/postgres/settings.json` gespeichert. Dieser Ordner ist von Git ausgeschlossen. Für eine bestehende Instanz eigene Zugangsdaten verwenden.
+Die Datenbank ist eine einzelne Datei (ohne WAL-Nebendateien). Für ein Backup genügt es, sie zusammen mit dem Bilder-Ordner zu kopieren.
 
 ## Funktionen
 
@@ -51,7 +45,7 @@ Die Zugangsdaten der automatisch angelegten Datenbank werden lokal unter `.local
 - Statuswechsel im Kanban per Drag & Drop
 - Aufgabenbalken in der Zeitachse verschieben oder über Griffe am Anfang und Ende verlängern/verkürzen; Tagesraster, Datumsvorschau und automatische Speicherung
 - Zeitachse mit wählbaren Intervallen Woche, Monat und 3 Monate; die Auswahl bleibt im Browser gespeichert
-- SunEditor für Überschriften, Listen, Tabellen und Bilder in Aufgabenbeschreibungen. Bilder lassen sich auch aus der Zwischenablage einfügen und werden lokal unter `.local/images` gespeichert.
+- SunEditor für Überschriften, Listen, Tabellen und Bilder in Aufgabenbeschreibungen. Bilder lassen sich auch aus der Zwischenablage einfügen und werden im eingestellten Bilder-Ordner gespeichert (Standard: `.local/images`).
 
 Dokumente verwenden denselben Editor und dieselben eigenen Felder wie Aufgaben. Ordner haben ausschließlich einen Titel und eine Beschreibung. Dokumente und Ordner haben keinen Status oder Aufgabenzeitraum und erscheinen im gemeinsamen Baum; Kanban, Kalender und Zeitachse zeigen Aufgaben. Ordner werden separat gezählt und können über den Button links neben „Aufgabe“ und „Dokument“ erstellt werden. Beim Löschen eines Baumeintrags werden auch seine untergeordneten Einträge gelöscht. Das Entfernen einer zusätzlichen Verknüpfung löscht hingegen weder das Dokument noch die Aufgabe.
 
@@ -59,9 +53,9 @@ Für die Baumansicht werden bei Treffern unterhalb eines gefilterten Elternknote
 
 ## Aufbau
 
-`Domain` enthält die Datenobjekte, `Data` den EF Core Kontext und die Migration. `Services` übernimmt Aufgabenänderungen, Filterung und die Initialisierung. `Controllers` stellt die Oberfläche und JSON Endpunkte bereit. Die Razor Seite liegt unter `Views/Workspace`, die Oberfläche unter `wwwroot/js` und `wwwroot/css`.
+`Domain` enthält die Datenobjekte, `Data` den EF Core Kontext und die Migration. `Services` übernimmt Aufgabenänderungen, Filterung und die Initialisierung. `Controllers` stellt die Oberfläche und JSON Endpunkte bereit. Die Razor Seiten liegen unter `Views/Workspace` und `Views/Settings`, die Oberfläche unter `wwwroot/js` und `wwwroot/css`. `StorageSettings` hält die Speicherorte, `StorageLocationService` verschiebt Datenbank und Bilder beim Ändern.
 
-`WorkspaceItem` bildet den gemeinsamen Baum ab und unterscheidet mit `Kind` zwischen Ordner, Aufgabe und Dokument. `ItemLink` enthält zusätzliche Beziehungen zwischen Aufgaben und Dokumenten unabhängig von der Baumposition. `WorkspaceItemService` übernimmt Änderungen am Baum und den Inhalten sowie die Elternregeln für Ordner, `ItemLinkService` die Verknüpfungen. Die JSON-Endpunkte liegen unter `/api/items`; Verknüpfungen unter `/api/items/{id}/links`. Im Frontend sind die Berechnung der zugehörigen Einträge und deren Bearbeitung in `item-relations.js` und `item-links.js` gekapselt. Die vorhandenen Tabellen und IDs bleiben bei der Migration erhalten; bestehende Einträge werden als Aufgaben eingestuft. Der zusätzliche Typ „Ordner“ wird in der vorhandenen Typ-Spalte gespeichert und benötigt keine weitere Datenbankmigration.
+`WorkspaceItem` bildet den gemeinsamen Baum ab und unterscheidet mit `Kind` zwischen Ordner, Aufgabe und Dokument. `ItemLink` enthält zusätzliche Beziehungen zwischen Aufgaben und Dokumenten unabhängig von der Baumposition. `WorkspaceItemService` übernimmt Änderungen am Baum und den Inhalten sowie die Elternregeln für Ordner, `ItemLinkService` die Verknüpfungen. Die JSON-Endpunkte liegen unter `/api/items`; Verknüpfungen unter `/api/items/{id}/links`. Im Frontend sind die Berechnung der zugehörigen Einträge und deren Bearbeitung in `item-relations.js` und `item-links.js` gekapselt.
 
 SunEditor 3.3.3 liegt mitsamt Lizenz lokal unter `wwwroot/lib/suneditor`. Zum Starten ist deshalb weder npm noch eine CDN-Verbindung nötig. Für eingefügte Bilder gilt ein Limit von 5 MB pro Bild; unterstützt werden PNG, JPEG, GIF und WebP.
 

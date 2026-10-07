@@ -5,18 +5,16 @@ using QuireClone.Data;
 using QuireClone.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-var connectionString = builder.Configuration.GetConnectionString("Postgres");
-LocalPostgres? localPostgres = null;
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    localPostgres = await LocalPostgres.StartAsync(builder.Environment.ContentRootPath);
-    connectionString = localPostgres.ConnectionString;
-}
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddSingleton(services =>
+    new StorageSettings(services.GetRequiredService<IWebHostEnvironment>().ContentRootPath));
+// Options are built per request, so a changed database location applies to the next request.
+builder.Services.AddDbContext<AppDbContext>((services, options) =>
+    options.UseSqlite(services.GetRequiredService<StorageSettings>().ConnectionString));
 builder.Services.AddScoped<WorkspaceItemService>();
 builder.Services.AddScoped<ItemLinkService>();
 builder.Services.AddSingleton<TaskImageStorage>();
+builder.Services.AddSingleton<StorageLocationService>();
 builder.Services.AddScoped<WorkspaceService>();
 builder.Services.AddControllersWithViews(options =>
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()))
@@ -33,12 +31,5 @@ app.UseStaticFiles();
 app.UseRouting();
 app.MapControllers();
 app.MapControllerRoute("default", "{controller=Workspace}/{action=Index}/{id?}");
-try
-{
-    await DatabaseInitializer.InitializeAsync(app.Services);
-    await app.RunAsync();
-}
-finally
-{
-    if (localPostgres is not null) await localPostgres.StopAsync();
-}
+await DatabaseInitializer.InitializeAsync(app.Services);
+await app.RunAsync();

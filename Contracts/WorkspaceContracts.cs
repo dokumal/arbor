@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using QuireClone.Domain;
+using QuireClone.Services;
 using TaskStatus = QuireClone.Domain.TaskStatus;
 
 namespace QuireClone.Contracts;
@@ -75,6 +76,15 @@ public sealed class SelectOptionChange
 public sealed class CustomFieldOptionsRequest
 {
     public List<SelectOptionChange> Options { get; set; } = [];
+}
+
+public sealed record StorageInfoDto(string DatabasePath, string ImagesDirectory, string ResolvedDatabasePath,
+    string ResolvedImagesDirectory, long DatabaseSize, int ImageCount, StoragePaths Defaults);
+
+public sealed class StorageSettingsRequest
+{
+    public string DatabasePath { get; set; } = "";
+    public string ImagesDirectory { get; set; } = "";
 }
 
 public sealed class ViewConfigurationSaveRequest

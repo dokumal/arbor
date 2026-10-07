@@ -1,0 +1,36 @@
+@{
+    ViewData["Title"] = "Einstellungen";
+    ViewData["Page"] = "settings";
+}
+@Html.AntiForgeryToken()
+@section Scripts {
+    <script type="module" src="~/js/settings.js" asp-append-version="true"></script>
+}
+<main class="settings-page">
+    <a class="back-link" href="/">← Zurück zum Workspace</a>
+    <section class="page-heading">
+        <div><div class="eyebrow">EINSTELLUNGEN</div><h1>Speicherorte</h1><p>Lege fest, wo die Datenbank und die Bilder aus Beschreibungen gespeichert werden.</p></div>
+    </section>
+    <form id="settings-form" class="settings-card">
+        <div class="settings-field">
+            <label class="form-label" for="database-path">Datenbank-Datei</label>
+            <input id="database-path" required spellcheck="false" autocomplete="off" />
+            <p class="settings-meta"><span id="database-resolved">…</span><span id="database-size"></span></p>
+        </div>
+        <div class="settings-field">
+            <label class="form-label" for="images-directory">Ordner für Bilder</label>
+            <input id="images-directory" required spellcheck="false" autocomplete="off" />
+            <p class="settings-meta"><span id="images-resolved">…</span><span id="image-count"></span></p>
+        </div>
+        <div class="settings-note">
+            <p>Pfade können absolut sein oder relativ zum Programmordner. Umgebungsvariablen wie <code>%USERPROFILE%</code> sind erlaubt.</p>
+            <p><strong>Datenbank:</strong> Liegt am neuen Ort noch keine Datei, wird die aktuelle Datenbank dorthin verschoben. Liegt dort bereits eine Arbor-Datenbank, wird diese verwendet; die bisherige Datei bleibt dann am alten Ort erhalten.</p>
+            <p><strong>Bilder:</strong> Vorhandene Bilder werden in den neuen Ordner verschoben.</p>
+        </div>
+        <div class="settings-actions">
+            <button type="button" id="settings-defaults" class="secondary-button">Standardwerte eintragen</button>
+            <span id="settings-status" class="settings-status" role="status" aria-live="polite" hidden></span>
+            <button type="submit" id="settings-save" class="primary-button">Speichern</button>
+        </div>
+    </form>
+</main>

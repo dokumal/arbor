@@ -11,9 +11,17 @@ public static class DatabaseInitializer
     public static async Task InitializeAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.MigrateAsync();
-        if (await db.ViewConfigurations.AnyAsync()) return;
+        Directory.CreateDirectory(Path.GetDirectoryName(scope.ServiceProvider.GetRequiredService<StorageSettings>().DatabasePath)!);
+        await InitializeAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>());
+    }
+
+    // Applies migrations and seeds a new, empty database with sample fields and views.
+    public static async Task InitializeAsync(AppDbContext db, CancellationToken cancellationToken = default)
+    {
+        await db.Database.MigrateAsync(cancellationToken);
+        // EF creates SQLite files in WAL mode; a rollback journal keeps all data in the one .db file, so copying it is a complete backup.
+        await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=DELETE;", cancellationToken);
+        if (await db.ViewConfigurations.AnyAsync(cancellationToken)) return;
 
         var label = new CustomFieldDefinition { Name = "Label", Type = CustomFieldType.Text };
         var priority = new CustomFieldDefinition { Name = "Priorität", Type = CustomFieldType.Select,
@@ -25,11 +33,11 @@ public static class DatabaseInitializer
             View("Kalender", ViewKind.Calendar, 2, ["title", "status", $"field:{label.Id}"]),
             View("Zeitachse", ViewKind.Timeline, 3, ["title", "status", "startDate", "dueDate", $"field:{label.Id}"]),
             UpcomingView(4));
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
     }
 
-    // Open tasks that are overdue or due within the next seven days; the migration adds the same view to existing workspaces.
-    public static ViewConfiguration UpcomingView(int order) => new()
+    // Open tasks that are overdue or due within the next seven days.
+    private static ViewConfiguration UpcomingView(int order) => new()
     {
         Name = "Anstehend", Kind = ViewKind.Tree, SortOrder = order,
         VisibleFieldsJson = JsonSerializer.Serialize(new[] { "title", "status", "dueDate" }),

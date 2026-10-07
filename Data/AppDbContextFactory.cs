@@ -8,10 +8,8 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
 {
     public AppDbContext CreateDbContext(string[] args)
     {
-        var connection = Environment.GetEnvironmentVariable("ConnectionStrings__Postgres")
-            ?? LocalPostgres.TryGetExistingConnectionString(Directory.GetCurrentDirectory())
-            ?? "Host=localhost;Port=5433;Database=quireclone;Username=quireclone;Password=quireclone";
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connection).Options;
+        var settings = new StorageSettings(Directory.GetCurrentDirectory());
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(settings.ConnectionString).Options;
         return new AppDbContext(options);
     }
 }

@@ -1,10 +1,9 @@
 namespace QuireClone.Services;
 
-public sealed class TaskImageStorage(IWebHostEnvironment environment)
+public sealed class TaskImageStorage(StorageSettings settings)
 {
     public const long MaxImageBytes = 5 * 1024 * 1024;
 
-    private readonly string directory = Path.Combine(environment.ContentRootPath, ".local", "images");
 
     public async Task<(string Name, long Size)> SaveAsync(IFormFile image, CancellationToken cancellationToken)
     {
@@ -20,6 +19,7 @@ public sealed class TaskImageStorage(IWebHostEnvironment environment)
         var bytes = buffer.ToArray();
         var extension = GetExtension(bytes) ?? throw new ArgumentException(
             "Nur PNG-, JPEG-, GIF- und WebP-Bilder werden unterstützt.");
+        var directory = settings.ImagesDirectory;
         Directory.CreateDirectory(directory);
         var name = $"{Guid.NewGuid():N}.{extension}";
         await using var output = new FileStream(Path.Combine(directory, name), FileMode.CreateNew);
@@ -28,6 +28,17 @@ public sealed class TaskImageStorage(IWebHostEnvironment environment)
     }
 
     public (string Path, string ContentType)? Find(string name)
+    {
+        var mime = ContentType(name);
+        if (mime is null) return null;
+        var path = Path.Combine(settings.ImagesDirectory, name);
+        return File.Exists(path) ? (path, mime) : null;
+    }
+
+    // Only names created by SaveAsync are served or moved, never other files in the folder.
+    public static bool IsStoredImageName(string name) => ContentType(name) is not null;
+
+    private static string? ContentType(string name)
     {
         var extension = Path.GetExtension(name).ToLowerInvariant();
         var mime = extension switch
@@ -38,10 +49,8 @@ public sealed class TaskImageStorage(IWebHostEnvironment environment)
             ".webp" => "image/webp",
             _ => null
         };
-        if (mime is null || name.Length != 32 + extension.Length ||
-            !Guid.TryParseExact(name[..32], "N", out _)) return null;
-        var path = Path.Combine(directory, name);
-        return File.Exists(path) ? (path, mime) : null;
+        return mime is null || name.Length != 32 + extension.Length ||
+            !Guid.TryParseExact(name[..32], "N", out _) ? null : mime;
     }
 
     private static string? GetExtension(ReadOnlySpan<byte> bytes)
