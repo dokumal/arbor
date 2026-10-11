@@ -34,6 +34,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.HasIndex(x => x.Name).IsUnique();
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Options).HasJsonConversion("OptionsJson");
         });
 
         modelBuilder.Entity<ItemFieldValue>(entity =>
@@ -61,6 +62,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Filters).HasJsonConversion("FiltersJson");
+            entity.Property(x => x.VisibleFields).HasJsonConversion("VisibleFieldsJson");
             entity.Property(x => x.GroupByField).HasMaxLength(64);
             entity.Property(x => x.SortField).HasMaxLength(64);
         });

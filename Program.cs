@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QuireClone.Controllers;
 using QuireClone.Data;
 using QuireClone.Services;
 
@@ -13,11 +14,16 @@ builder.Services.AddDbContext<AppDbContext>((services, options) =>
     options.UseSqlite(services.GetRequiredService<StorageSettings>().ConnectionString));
 builder.Services.AddScoped<WorkspaceItemService>();
 builder.Services.AddScoped<ItemLinkService>();
+builder.Services.AddScoped<CustomFieldService>();
+builder.Services.AddScoped<ViewConfigurationService>();
 builder.Services.AddSingleton<TaskImageStorage>();
 builder.Services.AddSingleton<StorageLocationService>();
 builder.Services.AddScoped<WorkspaceService>();
 builder.Services.AddControllersWithViews(options =>
-    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()))
+{
+    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+    options.Filters.Add<DomainExceptionFilter>();
+})
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 var app = builder.Build();

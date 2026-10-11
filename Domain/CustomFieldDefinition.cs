@@ -7,10 +7,13 @@ public sealed class CustomFieldDefinition
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public CustomFieldType Type { get; set; }
-    public string OptionsJson { get; set; } = "[]";
+    // Select values store the option's id, so renaming an option needs no data changes.
+    public List<SelectOption> Options { get; set; } = [];
     public int SortOrder { get; set; }
     public List<ItemFieldValue> Values { get; set; } = [];
 }
+
+public sealed record SelectOption(Guid Id, string Name);
 
 public sealed class ItemFieldValue
 {

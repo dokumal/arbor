@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using QuireClone.Contracts;
 using QuireClone.Data;
+using QuireClone.Domain;
 
 namespace QuireClone.Services;
 
@@ -30,7 +31,7 @@ public sealed class StorageLocationService(StorageSettings settings)
     {
         var requestedPaths = new StoragePaths(requested.DatabasePath.Trim(), requested.ImagesDirectory.Trim());
         if (requestedPaths.DatabasePath.Length == 0 || requestedPaths.ImagesDirectory.Length == 0)
-            throw new ArgumentException("Bitte beide Speicherorte angeben.");
+            throw new DomainValidationException("Bitte beide Speicherorte angeben.");
         string newDatabase, newImages;
         try
         {
@@ -39,12 +40,12 @@ public sealed class StorageLocationService(StorageSettings settings)
         }
         catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
         {
-            throw new ArgumentException("Mindestens ein Pfad ist ungültig.");
+            throw new DomainValidationException("Mindestens ein Pfad ist ungültig.");
         }
         if (Directory.Exists(newDatabase))
-            throw new ArgumentException("Für die Datenbank bitte einen Dateinamen angeben, keinen Ordner.");
+            throw new DomainValidationException("Für die Datenbank bitte einen Dateinamen angeben, keinen Ordner.");
         if (File.Exists(newImages))
-            throw new ArgumentException("Der Bilder-Pfad zeigt auf eine Datei. Bitte einen Ordner angeben.");
+            throw new DomainValidationException("Der Bilder-Pfad zeigt auf eine Datei. Bitte einen Ordner angeben.");
 
         await _gate.WaitAsync(cancellationToken);
         try
@@ -94,6 +95,10 @@ public sealed class StorageLocationService(StorageSettings settings)
             }
             return messages.Count > 0 ? string.Join(" ", messages) : "Einstellungen gespeichert.";
         }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new DomainValidationException($"Der Speicherort konnte nicht geändert werden: {exception.Message}");
+        }
         finally { _gate.Release(); }
     }
 
@@ -131,11 +136,11 @@ public sealed class StorageLocationService(StorageSettings settings)
         }
         catch (SqliteException)
         {
-            throw new ArgumentException("Die Datei am neuen Ort ist keine SQLite-Datenbank.");
+            throw new DomainValidationException("Die Datei am neuen Ort ist keine SQLite-Datenbank.");
         }
         // An empty file is fine; a database of another application is left untouched.
         if (tables.Count > 0 && !tables.Contains("__EFMigrationsHistory"))
-            throw new ArgumentException("Die Datei am neuen Ort ist keine Arbor-Datenbank.");
+            throw new DomainValidationException("Die Datei am neuen Ort ist keine Arbor-Datenbank.");
 
         var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connectionString).Options;
         await using var db = new AppDbContext(options);

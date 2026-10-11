@@ -53,7 +53,11 @@ Für die Baumansicht werden bei Treffern unterhalb eines gefilterten Elternknote
 
 ## Aufbau
 
-`Domain` enthält die Datenobjekte, `Data` den EF Core Kontext und die Migration. `Services` übernimmt Aufgabenänderungen, Filterung und die Initialisierung. `Controllers` stellt die Oberfläche und JSON Endpunkte bereit. Die Razor Seiten liegen unter `Views/Workspace` und `Views/Settings`, die Oberfläche unter `wwwroot/js` und `wwwroot/css`. `StorageSettings` hält die Speicherorte, `StorageLocationService` verschiebt Datenbank und Bilder beim Ändern.
+`Domain` enthält die Datenobjekte und die fachlichen Regeln, `Data` den EF Core Kontext und die Migrationen. `Services` übernimmt alle Änderungen, die Filterung und die Initialisierung. `Controllers` stellt die Oberfläche und JSON Endpunkte bereit und enthält selbst keine Logik.
+
+`ItemKindRules` legt fest, was Ordner, Aufgaben und Dokumente haben dürfen und wie sie kombiniert werden. `FieldKeys` bildet die Feldschlüssel der Ansichten (`dueDate`, `field:{id}`). Optionen von Auswahlfeldern haben eine feste ID; gespeicherte Werte und Filter verweisen auf diese ID, sodass Umbenennen nichts weiter ändern muss. Filter, sichtbare Felder und Optionen liegen als JSON in je einer Spalte und werden in `JsonColumn` umgewandelt.
+
+Services melden Regelverstöße mit `DomainValidationException` (400) oder `EntityNotFoundException` (404). `DomainExceptionFilter` macht daraus einheitlich ProblemDetails mit der Meldung in `detail`; der Bild-Upload ergänzt für SunEditor zusätzlich `errorMessage`. Die Razor Seiten liegen unter `Views/Workspace` und `Views/Settings`, die Oberfläche unter `wwwroot/js` und `wwwroot/css`. `StorageSettings` hält die Speicherorte, `StorageLocationService` verschiebt Datenbank und Bilder beim Ändern.
 
 `WorkspaceItem` bildet den gemeinsamen Baum ab und unterscheidet mit `Kind` zwischen Ordner, Aufgabe und Dokument. `ItemLink` enthält zusätzliche Beziehungen zwischen Aufgaben und Dokumenten unabhängig von der Baumposition. `WorkspaceItemService` übernimmt Änderungen am Baum und den Inhalten sowie die Elternregeln für Ordner, `ItemLinkService` die Verknüpfungen. Die JSON-Endpunkte liegen unter `/api/items`; Verknüpfungen unter `/api/items/{id}/links`. Im Frontend sind die Berechnung der zugehörigen Einträge und deren Bearbeitung in `item-relations.js` und `item-links.js` gekapselt.
 

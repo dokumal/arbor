@@ -1,3 +1,4 @@
+using QuireClone.Domain;
 namespace QuireClone.Services;
 
 public sealed class TaskImageStorage(StorageSettings settings)
@@ -8,16 +9,16 @@ public sealed class TaskImageStorage(StorageSettings settings)
     public async Task<(string Name, long Size)> SaveAsync(IFormFile image, CancellationToken cancellationToken)
     {
         if (image.Length is <= 0 or > MaxImageBytes)
-            throw new ArgumentException("Bilder müssen zwischen 1 Byte und 5 MB groß sein.");
+            throw new DomainValidationException("Bilder müssen zwischen 1 Byte und 5 MB groß sein.");
 
         await using var input = image.OpenReadStream();
         using var buffer = new MemoryStream();
         await input.CopyToAsync(buffer, cancellationToken);
         if (buffer.Length is <= 0 or > MaxImageBytes)
-            throw new ArgumentException("Bilder dürfen höchstens 5 MB groß sein.");
+            throw new DomainValidationException("Bilder dürfen höchstens 5 MB groß sein.");
 
         var bytes = buffer.ToArray();
-        var extension = GetExtension(bytes) ?? throw new ArgumentException(
+        var extension = GetExtension(bytes) ?? throw new DomainValidationException(
             "Nur PNG-, JPEG-, GIF- und WebP-Bilder werden unterstützt.");
         var directory = settings.ImagesDirectory;
         Directory.CreateDirectory(directory);

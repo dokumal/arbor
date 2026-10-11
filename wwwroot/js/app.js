@@ -1,13 +1,13 @@
-import { api } from './api.js';
-import { escapeHtml, fieldLabel, kinds, renderView, statuses, descriptionText } from './render.js?v=view-sorting';
+import { api } from './api.js?v=problem-details';
+import { escapeHtml, fieldLabel, kinds, renderView, statuses, descriptionText, customFieldText } from './render.js?v=option-ids';
 import { getDescription, setDescription } from './description-editor.js';
 import { initializeTaskDisplay } from './task-display.js';
 import { initializeTreeDrag } from './tree-drag.js?v=folders';
 import { initializeTimelineDrag } from './timeline-drag.js';
 import { timelineIntervals, shiftTimelineDate } from './timeline-range.js';
 import { isDocument, isFolder, isTask, canContain, itemIcon, itemKinds } from './item-relations.js?v=folders';
-import { initializeItemLinks } from './item-links.js?v=folders';
-import { initializeOptionEditors, readOptions, renderOptionEditor } from './option-editor.js';
+import { initializeItemLinks } from './item-links.js?v=problem-details';
+import { initializeOptionEditors, readOptions, renderOptionEditor } from './option-editor.js?v=option-ids';
 
 const $ = id => document.getElementById(id);
 initializeTaskDisplay($('task-drawer'), $('task-display-toggle'));
@@ -92,7 +92,7 @@ function render() {
     const query = ui.search.trim().toLocaleLowerCase('de');
     const terms = query.split(/\s+/).filter(Boolean);
     const matchesSearch = item => {
-        const text = [item.title, descriptionText(item.description), ...Object.values(item.fields)].join(' ').toLocaleLowerCase('de');
+        const text = [item.title, descriptionText(item.description), ...customFieldText(item, workspace.customFields)].join(' ').toLocaleLowerCase('de');
         return terms.every(term => text.includes(term));
     };
     const data = { ...workspace, searchQuery: query, matchingItemIds: workspace.matchingItemIds.filter(id => matchesSearch(taskById(id))) };
@@ -145,7 +145,7 @@ function descendantsOf(id) {
 
 function customInput(field, value) {
     let input;
-    if (field.type === 'Select') input = `<select data-field-id="${field.id}"><option value="">—</option>${field.options.map(option => `<option value="${escapeHtml(option)}" ${value === option ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}</select>`;
+    if (field.type === 'Select') input = `<select data-field-id="${field.id}"><option value="">—</option>${field.options.map(option => `<option value="${escapeHtml(option.id)}" ${value === option.id ? 'selected' : ''}>${escapeHtml(option.name)}</option>`).join('')}</select>`;
     else if (field.type === 'Boolean') input = `<select data-field-id="${field.id}"><option value="">—</option><option value="true" ${value === 'true' ? 'selected' : ''}>Ja</option><option value="false" ${value === 'false' ? 'selected' : ''}>Nein</option></select>`;
     else input = `<input data-field-id="${field.id}" type="${{ Number: 'number', Date: 'date' }[field.type] || 'text'}" ${field.type === 'Number' ? 'step="any"' : ''} value="${escapeHtml(value || '')}" maxlength="500" />`;
     return `<label class="custom-field"><span>${escapeHtml(field.name)}</span>${input}</label>`;
@@ -267,7 +267,7 @@ const relativeDates = [['@today', 'Heute'], ['@today+1', 'Morgen'], ['@today-1',
 function filterValueControl(fieldKey, value = '') {
     const field = workspace.customFields.find(item => fieldKey === `field:${item.id}`);
     const choices = fieldKey === 'kind' ? Object.entries(itemKinds) : fieldKey === 'status' ? Object.entries(statuses) :
-        field?.type === 'Select' ? field.options.map(option => [option, option]) :
+        field?.type === 'Select' ? field.options.map(option => [option.id, option.name]) :
         field?.type === 'Boolean' ? [['true', 'Ja'], ['false', 'Nein']] : null;
     if (choices) return `<select class="filter-value" aria-label="Filterwert"><option value="">Wert wählen</option>${choices.map(([key, label]) => `<option value="${escapeHtml(key)}" ${value === key ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select>`;
     const type = ['startDate', 'dueDate'].includes(fieldKey) || field?.type === 'Date' ? 'date' : field?.type === 'Number' ? 'number' : 'text';
@@ -360,8 +360,8 @@ function renderFieldList() {
         const select = field.type === 'Select';
         const editing = select && field.id === editingFieldId;
         const edit = select && !editing ? `<button type="button" class="icon-button" data-action="edit-field-options" data-id="${field.id}" title="Optionen bearbeiten" aria-label="Optionen von ${escapeHtml(field.name)} bearbeiten">✎</button>` : '';
-        const chips = select && !editing ? `<div class="field-option-chips">${field.options.map(option => `<span class="field-option-chip">${escapeHtml(option)}</span>`).join('')}</div>` : '';
-        const editor = editing ? `<div class="field-options-editor" data-field-id="${field.id}">${renderOptionEditor(field.options, true)}<div class="inline-submit"><button type="button" class="secondary-button" data-action="cancel-field-options">Abbrechen</button><button type="button" class="primary-button" data-action="save-field-options" data-id="${field.id}">Optionen speichern</button></div></div>` : '';
+        const chips = select && !editing ? `<div class="field-option-chips">${field.options.map(option => `<span class="field-option-chip">${escapeHtml(option.name)}</span>`).join('')}</div>` : '';
+        const editor = editing ? `<div class="field-options-editor" data-field-id="${field.id}">${renderOptionEditor(field.options)}<div class="inline-submit"><button type="button" class="secondary-button" data-action="cancel-field-options">Abbrechen</button><button type="button" class="primary-button" data-action="save-field-options" data-id="${field.id}">Optionen speichern</button></div></div>` : '';
         return `<div class="field-list-item ${editing ? 'editing' : ''}"><div class="field-list-row"><strong>${escapeHtml(field.name)}</strong><span>${{ Text: 'Text', Select: 'Auswahl', Number: 'Zahl', Date: 'Datum', Boolean: 'Ja / Nein' }[field.type]}</span>${edit}<button type="button" class="icon-button" data-action="delete-field" data-id="${field.id}" title="Feld löschen" aria-label="${escapeHtml(field.name)} löschen">×</button></div>${chips}${editor}</div>`;
     }).join('') || '<p class="helper-text">Noch keine eigenen Felder.</p>';
 }
@@ -385,7 +385,7 @@ async function saveField(event) {
     const previousValues = drawerFieldValues();
     const type = $('field-type').value;
     const payload = { name: $('field-name').value.trim(), type,
-        options: type === 'Select' ? readOptions($('field-options')).map(option => option.value) : [] };
+        options: type === 'Select' ? readOptions($('field-options')).map(option => option.name) : [] };
     try {
         await api('/api/fields', { method: 'POST', body: JSON.stringify(payload) });
         $('field-dialog').close(); resetFieldForm(); await loadWorkspace();
@@ -399,17 +399,15 @@ async function saveFieldOptions(id) {
     const editor = $('field-list').querySelector(`.field-options-editor[data-field-id="${id}"] .option-editor`);
     if (!field || !editor) return;
     const options = readOptions(editor);
-    const kept = new Set(options.map(option => option.original));
-    const inUse = field.options.filter(option => !kept.has(option))
-        .map(option => [option, workspace.items.filter(item => item.fields[id] === option).length])
+    const kept = new Set(options.map(option => option.id));
+    const inUse = field.options.filter(option => !kept.has(option.id))
+        .map(option => [option.name, workspace.items.filter(item => item.fields[id] === option.id).length])
         .filter(([, count]) => count > 0);
     if (inUse.length && !confirm(`Diese entfernten Optionen werden noch verwendet:\n${inUse.map(([option, count]) => `„${option}“ – ${count} ${count === 1 ? 'Eintrag' : 'Einträge'}`).join('\n')}\n\nDie Werte werden bei diesen Einträgen gelöscht. Fortfahren?`)) return;
+    // Values refer to option ids, so a renamed option keeps its value in the open drawer.
     const previousValues = drawerFieldValues();
     try {
         await api(`/api/fields/${id}/options`, { method: 'PUT', body: JSON.stringify({ options }) });
-        // Carry a renamed option over into the open drawer so saving it doesn't clear the value.
-        const renamed = options.find(option => option.original !== null && option.original === previousValues[id]);
-        if (renamed) previousValues[id] = renamed.value;
         editingFieldId = null;
         await loadWorkspace();
         renderFieldList();

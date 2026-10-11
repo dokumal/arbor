@@ -12,7 +12,8 @@ export async function api(path, options = {}) {
         let message = `Anfrage fehlgeschlagen (${response.status}).`;
         try {
             const error = await response.json();
-            message = error.error || error.title || Object.values(error.errors || {}).flat().join(' ') || message;
+            // Rule violations arrive as ProblemDetails with the message in "detail"; model validation lists "errors".
+            message = error.detail || Object.values(error.errors || {}).flat().join(' ') || error.title || message;
         } catch { /* A plain error response still gets a useful status. */ }
         throw new Error(message);
     }

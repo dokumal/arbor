@@ -11,9 +11,8 @@ public sealed class ItemLinksController(ItemLinkService links) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(Guid id, ItemLinkRequest request, CancellationToken cancellationToken)
     {
-        try { await links.AddAsync(id, request.RelatedItemId, cancellationToken); return NoContent(); }
-        catch (KeyNotFoundException) { return NotFound(); }
-        catch (ArgumentException exception) { return BadRequest(new { error = exception.Message }); }
+        await links.AddAsync(id, request.RelatedItemId, cancellationToken);
+        return NoContent();
     }
 
     [HttpDelete("{relatedId:guid}")]

@@ -10,9 +10,7 @@ public sealed record WorkspaceItemDto(Guid Id, WorkspaceItemKind Kind, string Ti
     DateTimeOffset UpdatedAt, Dictionary<Guid, string> Fields);
 
 public sealed record CustomFieldDto(Guid Id, string Name, CustomFieldType Type,
-    List<string> Options, int SortOrder);
-
-public sealed record ViewFilter(string Field, string Operator, string Value);
+    List<SelectOption> Options, int SortOrder);
 
 public sealed record ViewConfigurationDto(Guid Id, string Name, ViewKind Kind,
     List<ViewFilter> Filters, List<string> VisibleFields, string? GroupByField, string? SortField,
@@ -68,9 +66,9 @@ public sealed class CustomFieldSaveRequest
 
 public sealed class SelectOptionChange
 {
-    // The option's current value, or null for a newly added option.
-    public string? Original { get; set; }
-    public string Value { get; set; } = "";
+    // The id of an existing option, or null for a newly added option.
+    public Guid? Id { get; set; }
+    public string Name { get; set; } = "";
 }
 
 public sealed class CustomFieldOptionsRequest

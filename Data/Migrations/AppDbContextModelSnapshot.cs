@@ -28,9 +28,10 @@ namespace QuireClone.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("OptionsJson")
+                    b.Property<string>("Options")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("OptionsJson");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");
@@ -89,9 +90,10 @@ namespace QuireClone.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("FiltersJson")
+                    b.Property<string>("Filters")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("FiltersJson");
 
                     b.Property<string>("GroupByField")
                         .HasMaxLength(64)
@@ -120,9 +122,10 @@ namespace QuireClone.Data.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("VisibleFieldsJson")
+                    b.Property<string>("VisibleFields")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("VisibleFieldsJson");
 
                     b.HasKey("Id");
 

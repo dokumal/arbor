@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using QuireClone.Domain;
 using QuireClone.Services;
 
 namespace QuireClone.Controllers;
@@ -11,16 +12,16 @@ public sealed class TaskImagesController(TaskImageStorage images) : ControllerBa
     [RequestSizeLimit(6 * 1024 * 1024)]
     public async Task<IActionResult> Upload(CancellationToken cancellationToken)
     {
-        if (!Request.HasFormContentType) return BadRequest(new { errorMessage = "Ein Bild fehlt." });
+        if (!Request.HasFormContentType) return UploadError("Ein Bild fehlt.");
         var files = (await Request.ReadFormAsync(cancellationToken)).Files;
-        if (files.Count != 1) return BadRequest(new { errorMessage = "Bitte genau ein Bild hochladen." });
+        if (files.Count != 1) return UploadError("Bitte genau ein Bild hochladen.");
 
         try
         {
             var (name, size) = await images.SaveAsync(files[0], cancellationToken);
             return Ok(new { result = new[] { new { url = $"/task-images/{name}", name, size } } });
         }
-        catch (ArgumentException exception) { return BadRequest(new { errorMessage = exception.Message }); }
+        catch (DomainValidationException exception) { return UploadError(exception.Message); }
     }
 
     [HttpGet("/task-images/{name}")]
@@ -28,5 +29,14 @@ public sealed class TaskImagesController(TaskImageStorage images) : ControllerBa
     {
         var image = images.Find(name);
         return image is null ? NotFound() : PhysicalFile(image.Value.Path, image.Value.ContentType);
+    }
+
+    // SunEditor shows the "errorMessage" property of a failed upload, so it is added to the usual ProblemDetails.
+    private ObjectResult UploadError(string message)
+    {
+        var problem = ProblemDetailsFactory.CreateProblemDetails(HttpContext, StatusCodes.Status400BadRequest,
+            "Ungültige Anfrage", detail: message);
+        problem.Extensions["errorMessage"] = message;
+        return BadRequest(problem);
     }
 }

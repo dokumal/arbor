@@ -16,12 +16,22 @@ export function fieldLabel(key, definitions) {
     return { title: 'Eintrag', kind: 'Typ', description: 'Inhalt', status: 'Status', startDate: 'Start', dueDate: 'Fällig' }[key] || key;
 }
 
+// Select fields store an option id; unknown values are shown as they are.
+export const optionName = (field, value) => field.options.find(option => option.id === value)?.name ?? value;
+
+// Custom field values as the user reads them, for the workspace search.
+export const customFieldText = (item, definitions) => Object.entries(item.fields).map(([id, value]) => {
+    const field = definitions.find(definition => definition.id === id);
+    return field?.type === 'Select' ? optionName(field, value) : value;
+});
+
 export function fieldValue(task, key, definitions) {
     if (key.startsWith('field:')) {
         const field = definitions.find(item => item.id === key.slice(6));
         const value = task.fields[key.slice(6)];
         if (field?.type === 'Boolean') return value === 'true' ? 'Ja' : value === 'false' ? 'Nein' : '';
         if (field?.type === 'Date') return formatDate(value);
+        if (field?.type === 'Select' && value) return optionName(field, value);
         return value || '';
     }
     if (key === 'kind') return itemKinds[task.kind] || 'Aufgabe';
@@ -68,7 +78,7 @@ function sortValue(item, key, definitions) {
     if (field?.type === 'Number') return Number.parseFloat(raw);
     if (field?.type === 'Boolean') return raw === 'true' ? 0 : 1;
     if (field?.type === 'Select') {
-        const index = field.options.indexOf(raw);
+        const index = field.options.findIndex(option => option.id === raw);
         return index < 0 ? field.options.length : index;
     }
     return raw;
@@ -121,7 +131,7 @@ function groupTasks(tasks, view, definitions) {
         if (!groups.has(key)) groups.set(key, { key, label: key ? fieldValue(task, field, definitions) : 'Ohne Wert', tasks: [] });
         groups.get(key).tasks.push(task);
     }
-    const order = field === 'kind' ? Object.keys(itemKinds) : field === 'status' ? Object.keys(statuses) : definition?.type === 'Select' ? definition.options : null;
+    const order = field === 'kind' ? Object.keys(itemKinds) : field === 'status' ? Object.keys(statuses) : definition?.type === 'Select' ? definition.options.map(option => option.id) : null;
     return [...groups.values()].sort((a, b) => {
         if (!a.key && !b.key) return 0;
         if (!a.key) return 1;
@@ -209,7 +219,7 @@ function inlineFieldInput(task, field) {
     const pill = field.name === 'Label' && value ? 'inline-pill' : '';
     const attributes = `class="inline-field ${value ? pill : 'empty'}" data-inline-field="${field.id}" data-item-id="${task.id}" aria-label="${escapeHtml(`${field.name} von „${task.title}“`)}"`;
     if (field.type === 'Select' || field.type === 'Boolean') {
-        const choices = field.type === 'Boolean' ? [['true', 'Ja'], ['false', 'Nein']] : field.options.map(option => [option, option]);
+        const choices = field.type === 'Boolean' ? [['true', 'Ja'], ['false', 'Nein']] : field.options.map(option => [option.id, option.name]);
         return `<select ${attributes}><option value="">—</option>${choices.map(([key, label]) => `<option value="${escapeHtml(key)}" ${key === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select>`;
     }
     const type = { Number: 'number', Date: 'date' }[field.type] || 'text';

@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using QuireClone.Contracts;
@@ -19,7 +18,7 @@ public sealed partial class WorkspaceService(AppDbContext db)
         var views = await db.ViewConfigurations.AsNoTracking().OrderBy(x => x.SortOrder)
             .ToListAsync(cancellationToken);
         var selectedView = viewId is null ? views.FirstOrDefault() : views.FirstOrDefault(x => x.Id == viewId);
-        List<ViewFilter> activeFilters = selectedView is null ? [] : Deserialize<List<ViewFilter>>(selectedView.FiltersJson);
+        var activeFilters = selectedView?.Filters ?? [];
 
         var links = await db.ItemLinks.AsNoTracking().ToListAsync(cancellationToken);
         var itemDtos = items.Select(x => new WorkspaceItemDto(x.Id, x.Kind, x.Title, x.Description,
@@ -27,35 +26,27 @@ public sealed partial class WorkspaceService(AppDbContext db)
             x.UpdatedAt, x.FieldValues.ToDictionary(v => v.FieldId, v => v.Value))).ToList();
         var hideCompleted = selectedView?.HideCompleted == true;
         var matching = itemDtos.Where(x => activeFilters.All(f => Matches(x, f)) &&
-                !(hideCompleted && x.Kind == WorkspaceItemKind.Task && x.Status == Domain.TaskStatus.Done))
+                !(hideCompleted && ItemKindRules.HasSchedule(x.Kind) && x.Status == Domain.TaskStatus.Done))
             .Select(x => x.Id).ToList();
 
         return new WorkspaceDto(itemDtos, matching,
-            fields.Select(x => new CustomFieldDto(x.Id, x.Name, x.Type,
-                Deserialize<List<string>>(x.OptionsJson), x.SortOrder)).ToList(),
-            views.Select(x => new ViewConfigurationDto(x.Id, x.Name, x.Kind,
-                Deserialize<List<ViewFilter>>(x.FiltersJson),
-                Deserialize<List<string>>(x.VisibleFieldsJson), x.GroupByField, x.SortField,
-                x.SortDescending, x.HideCompleted, x.SortOrder)).ToList(),
+            fields.Select(x => new CustomFieldDto(x.Id, x.Name, x.Type, x.Options, x.SortOrder)).ToList(),
+            views.Select(x => new ViewConfigurationDto(x.Id, x.Name, x.Kind, x.Filters, x.VisibleFields,
+                x.GroupByField, x.SortField, x.SortDescending, x.HideCompleted, x.SortOrder)).ToList(),
             links.Select(x => new ItemLinkDto(x.TaskId, x.DocumentId)).ToList());
     }
-
-    public static T Deserialize<T>(string json) => JsonSerializer.Deserialize<T>(json,
-        new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
 
     private static bool Matches(WorkspaceItemDto item, ViewFilter filter)
     {
         var value = filter.Field switch
         {
-            "title" => item.Title,
-            "description" => item.Description,
-            "kind" => item.Kind.ToString(),
-            "status" => item.Kind == WorkspaceItemKind.Task ? item.Status.ToString() : null,
-            "startDate" => item.StartDate?.ToString("yyyy-MM-dd"),
-            "dueDate" => item.DueDate?.ToString("yyyy-MM-dd"),
-            _ when filter.Field.StartsWith("field:", StringComparison.Ordinal) &&
-                Guid.TryParse(filter.Field[6..], out var fieldId) =>
-                item.Fields.GetValueOrDefault(fieldId),
+            FieldKeys.Title => item.Title,
+            FieldKeys.Description => item.Description,
+            FieldKeys.Kind => item.Kind.ToString(),
+            FieldKeys.Status => ItemKindRules.HasSchedule(item.Kind) ? item.Status.ToString() : null,
+            FieldKeys.StartDate => item.StartDate?.ToString("yyyy-MM-dd"),
+            FieldKeys.DueDate => item.DueDate?.ToString("yyyy-MM-dd"),
+            _ when FieldKeys.TryGetCustomFieldId(filter.Field, out var fieldId) => item.Fields.GetValueOrDefault(fieldId),
             _ => null
         };
         var comparison = StringComparison.OrdinalIgnoreCase;

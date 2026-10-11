@@ -1,6 +1,4 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using QuireClone.Contracts;
 using QuireClone.Data;
 using QuireClone.Domain;
 
@@ -25,13 +23,14 @@ public static class DatabaseInitializer
 
         var label = new CustomFieldDefinition { Name = "Label", Type = CustomFieldType.Text };
         var priority = new CustomFieldDefinition { Name = "Priorität", Type = CustomFieldType.Select,
-            OptionsJson = JsonSerializer.Serialize(new[] { "Niedrig", "Mittel", "Hoch" }), SortOrder = 1 };
+            Options = [new(Guid.NewGuid(), "Niedrig"), new(Guid.NewGuid(), "Mittel"), new(Guid.NewGuid(), "Hoch")],
+            SortOrder = 1 };
         db.CustomFields.AddRange(label, priority);
         db.ViewConfigurations.AddRange(
-            View("Alle Einträge", ViewKind.Tree, 0, ["kind", "status", "title", "dueDate", $"field:{label.Id}", $"field:{priority.Id}"]),
-            View("Kanban", ViewKind.Kanban, 1, ["title", "dueDate", $"field:{label.Id}"]),
-            View("Kalender", ViewKind.Calendar, 2, ["title", "status", $"field:{label.Id}"]),
-            View("Zeitachse", ViewKind.Timeline, 3, ["title", "status", "startDate", "dueDate", $"field:{label.Id}"]),
+            View("Alle Einträge", ViewKind.Tree, 0, ["kind", "status", "title", "dueDate", FieldKeys.ForCustomField(label.Id), FieldKeys.ForCustomField(priority.Id)]),
+            View("Kanban", ViewKind.Kanban, 1, ["title", "dueDate", FieldKeys.ForCustomField(label.Id)]),
+            View("Kalender", ViewKind.Calendar, 2, ["title", "status", FieldKeys.ForCustomField(label.Id)]),
+            View("Zeitachse", ViewKind.Timeline, 3, ["title", "status", "startDate", "dueDate", FieldKeys.ForCustomField(label.Id)]),
             UpcomingView(4));
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -40,14 +39,14 @@ public static class DatabaseInitializer
     private static ViewConfiguration UpcomingView(int order) => new()
     {
         Name = "Anstehend", Kind = ViewKind.Tree, SortOrder = order,
-        VisibleFieldsJson = JsonSerializer.Serialize(new[] { "title", "status", "dueDate" }),
-        FiltersJson = JsonSerializer.Serialize(new[] { new ViewFilter("dueDate", "before", "@today+7") }),
-        SortField = "dueDate", HideCompleted = true
+        VisibleFields = [FieldKeys.Title, FieldKeys.Status, FieldKeys.DueDate],
+        Filters = [new ViewFilter(FieldKeys.DueDate, "before", "@today+7")],
+        SortField = FieldKeys.DueDate, HideCompleted = true
     };
 
     private static ViewConfiguration View(string name, ViewKind kind, int order, string[] fields) => new()
     {
         Name = name, Kind = kind, SortOrder = order,
-        VisibleFieldsJson = JsonSerializer.Serialize(fields)
+        VisibleFields = [.. fields]
     };
 }

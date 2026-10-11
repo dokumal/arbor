@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using QuireClone.Contracts;
 using QuireClone.Data;
@@ -12,71 +11,67 @@ public sealed class WorkspaceItemService(AppDbContext db)
     public async Task<WorkspaceItem> SaveAsync(Guid? id, ItemSaveRequest request, CancellationToken cancellationToken)
     {
         var title = request.Title.Trim();
-        if (!Enum.IsDefined(request.Kind)) throw new ArgumentException("Ungültiger Eintragstyp.");
-        if (title.Length is 0 or > 300) throw new ArgumentException("Der Titel muss 1 bis 300 Zeichen enthalten.");
+        if (!Enum.IsDefined(request.Kind)) throw new DomainValidationException("Ungültiger Eintragstyp.");
+        if (title.Length is 0 or > 300) throw new DomainValidationException("Der Titel muss 1 bis 300 Zeichen enthalten.");
         if (request.StartDate > request.DueDate)
-            throw new ArgumentException("Das Startdatum darf nicht nach dem Fälligkeitsdatum liegen.");
+            throw new DomainValidationException("Das Startdatum darf nicht nach dem Fälligkeitsdatum liegen.");
         if (!Enum.IsDefined(request.Status))
-            throw new ArgumentException("Ungültiger Status.");
-        if (request.Kind == WorkspaceItemKind.Folder &&
-            (request.Fields.Count > 0 || request.StartDate is not null || request.DueDate is not null ||
-             request.Status != Domain.TaskStatus.Todo))
-            throw new ArgumentException("Ordner haben nur einen Titel und eine Beschreibung, keine eigenen Felder, Termine oder Aufgabenstatus.");
+            throw new DomainValidationException("Ungültiger Status.");
+        if (!ItemKindRules.HasSchedule(request.Kind) &&
+            (request.StartDate is not null || request.DueDate is not null || request.Status != Domain.TaskStatus.Todo))
+            throw new DomainValidationException("Nur Aufgaben haben Termine und einen Status.");
+        if (!ItemKindRules.HasCustomFields(request.Kind) && request.Fields.Count > 0)
+            throw new DomainValidationException("Ordner haben keine eigenen Felder.");
 
         WorkspaceItem item;
         if (id is null)
         {
-            item = new WorkspaceItem
-            {
-                SortOrder = (await db.Items.Where(x => x.ParentId == request.ParentId)
-                    .MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1
-            };
+            item = new WorkspaceItem { SortOrder = await NextSortOrderAsync(request.ParentId, cancellationToken) };
             db.Items.Add(item);
         }
         else
         {
             item = await db.Items.Include(x => x.FieldValues)
                 .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-                ?? throw new KeyNotFoundException("Eintrag nicht gefunden.");
+                ?? throw new EntityNotFoundException("Eintrag nicht gefunden.");
             if (item.Kind != request.Kind)
-                throw new ArgumentException("Der Eintragstyp kann nach dem Erstellen nicht geändert werden.");
+                throw new DomainValidationException("Der Eintragstyp kann nach dem Erstellen nicht geändert werden.");
             if (item.ParentId != request.ParentId)
-                item.SortOrder = (await db.Items.Where(x => x.ParentId == request.ParentId)
-                    .MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1;
+                item.SortOrder = await NextSortOrderAsync(request.ParentId, cancellationToken);
         }
 
         await ValidateParentAsync(item.Id, request.Kind, request.ParentId, cancellationToken);
         var definitions = await db.CustomFields.ToDictionaryAsync(x => x.Id, cancellationToken);
+        var values = new Dictionary<Guid, string>();
         foreach (var (fieldId, value) in request.Fields)
         {
             if (!definitions.TryGetValue(fieldId, out var field))
-                throw new ArgumentException("Ein benutzerdefiniertes Feld existiert nicht mehr.");
-            ValidateValue(field, value);
+                throw new DomainValidationException("Ein benutzerdefiniertes Feld existiert nicht mehr.");
+            if (NormalizeValue(field, value) is { } normalized) values[fieldId] = normalized;
         }
 
         item.Kind = request.Kind;
         item.Title = title;
         item.Description = request.Description.Trim();
         item.ParentId = request.ParentId;
-        item.Status = request.Kind == WorkspaceItemKind.Task ? request.Status : Domain.TaskStatus.Todo;
-        item.StartDate = request.Kind == WorkspaceItemKind.Task ? request.StartDate : null;
-        item.DueDate = request.Kind == WorkspaceItemKind.Task ? request.DueDate : null;
+        item.Status = request.Status;
+        item.StartDate = request.StartDate;
+        item.DueDate = request.DueDate;
         item.UpdatedAt = DateTimeOffset.UtcNow;
 
         foreach (var existing in item.FieldValues.ToList())
         {
-            if (!request.Fields.TryGetValue(existing.FieldId, out var value) || string.IsNullOrWhiteSpace(value))
+            if (values.TryGetValue(existing.FieldId, out var value)) existing.Value = value;
+            else
             {
                 item.FieldValues.Remove(existing);
                 db.ItemFieldValues.Remove(existing);
             }
-            else existing.Value = value.Trim();
         }
-        foreach (var (fieldId, value) in request.Fields.Where(x => !string.IsNullOrWhiteSpace(x.Value)))
+        foreach (var (fieldId, value) in values)
         {
             if (item.FieldValues.All(x => x.FieldId != fieldId))
-                item.FieldValues.Add(new ItemFieldValue { ItemId = item.Id, FieldId = fieldId,
-                    Value = value!.Trim() });
+                item.FieldValues.Add(new ItemFieldValue { ItemId = item.Id, FieldId = fieldId, Value = value });
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -86,13 +81,12 @@ public sealed class WorkspaceItemService(AppDbContext db)
     public async Task UpdateDatesAsync(Guid id, TaskDatesRequest request, CancellationToken cancellationToken)
     {
         if (request.StartDate is null && request.DueDate is null)
-            throw new ArgumentException("Für den Zeitraum ist mindestens ein Datum erforderlich.");
+            throw new DomainValidationException("Für den Zeitraum ist mindestens ein Datum erforderlich.");
         if (request.StartDate > request.DueDate)
-            throw new ArgumentException("Das Startdatum darf nicht nach dem Fälligkeitsdatum liegen.");
-        var item = await db.Items.FindAsync([id], cancellationToken)
-            ?? throw new KeyNotFoundException("Eintrag nicht gefunden.");
-        if (item.Kind != WorkspaceItemKind.Task)
-            throw new ArgumentException("Nur Aufgaben haben einen Aufgabenzeitraum.");
+            throw new DomainValidationException("Das Startdatum darf nicht nach dem Fälligkeitsdatum liegen.");
+        var item = await FindAsync(id, cancellationToken);
+        if (!ItemKindRules.HasSchedule(item.Kind))
+            throw new DomainValidationException("Nur Aufgaben haben einen Aufgabenzeitraum.");
         item.StartDate = request.StartDate;
         item.DueDate = request.DueDate;
         item.UpdatedAt = DateTimeOffset.UtcNow;
@@ -103,38 +97,37 @@ public sealed class WorkspaceItemService(AppDbContext db)
     {
         var item = await db.Items.Include(x => x.FieldValues)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new KeyNotFoundException("Eintrag nicht gefunden.");
-        if (item.Kind == WorkspaceItemKind.Folder)
-            throw new ArgumentException("Ordner haben keine eigenen Felder.");
+            ?? throw new EntityNotFoundException("Eintrag nicht gefunden.");
+        if (!ItemKindRules.HasCustomFields(item.Kind))
+            throw new DomainValidationException("Ordner haben keine eigenen Felder.");
         var field = await db.CustomFields.FindAsync([fieldId], cancellationToken)
-            ?? throw new ArgumentException("Ein benutzerdefiniertes Feld existiert nicht mehr.");
-        ValidateValue(field, value);
+            ?? throw new DomainValidationException("Ein benutzerdefiniertes Feld existiert nicht mehr.");
+        var normalized = NormalizeValue(field, value);
 
         var existing = item.FieldValues.FirstOrDefault(x => x.FieldId == fieldId);
-        if (string.IsNullOrWhiteSpace(value))
+        if (normalized is null)
         {
             if (existing is null) return;
             item.FieldValues.Remove(existing);
             db.ItemFieldValues.Remove(existing);
         }
         else if (existing is null)
-            item.FieldValues.Add(new ItemFieldValue { ItemId = item.Id, FieldId = fieldId, Value = value.Trim() });
-        else existing.Value = value.Trim();
+            item.FieldValues.Add(new ItemFieldValue { ItemId = item.Id, FieldId = fieldId, Value = normalized });
+        else existing.Value = normalized;
         item.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task MoveAsync(Guid id, TaskMoveRequest request, CancellationToken cancellationToken)
     {
-        var item = await db.Items.FindAsync([id], cancellationToken)
-            ?? throw new KeyNotFoundException("Eintrag nicht gefunden.");
+        var item = await FindAsync(id, cancellationToken);
         await ValidateParentAsync(id, item.Kind, request.ParentId, cancellationToken);
         var siblings = await db.Items.Where(x => x.ParentId == request.ParentId && x.Id != id)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToListAsync(cancellationToken);
         var position = request.BeforeTaskId is Guid beforeId
             ? siblings.FindIndex(x => x.Id == beforeId) : siblings.Count;
         if (position < 0)
-            throw new ArgumentException("Die Einfügeposition gehört nicht zur gewählten Ebene.");
+            throw new DomainValidationException("Die Einfügeposition gehört nicht zur gewählten Ebene.");
 
         var oldParent = item.ParentId;
         if (oldParent != request.ParentId)
@@ -153,11 +146,15 @@ public sealed class WorkspaceItemService(AppDbContext db)
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        var item = await db.Items.FindAsync([id], cancellationToken)
-            ?? throw new KeyNotFoundException("Eintrag nicht gefunden.");
-        db.Items.Remove(item);
+        db.Items.Remove(await FindAsync(id, cancellationToken));
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    private async Task<WorkspaceItem> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        await db.Items.FindAsync([id], cancellationToken) ?? throw new EntityNotFoundException("Eintrag nicht gefunden.");
+
+    private async Task<int> NextSortOrderAsync(Guid? parentId, CancellationToken cancellationToken) =>
+        (await db.Items.Where(x => x.ParentId == parentId).MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1;
 
     private async Task ValidateParentAsync(Guid itemId, WorkspaceItemKind kind, Guid? parentId, CancellationToken cancellationToken)
     {
@@ -166,21 +163,30 @@ public sealed class WorkspaceItemService(AppDbContext db)
         while (parentId is Guid current)
         {
             if (!visited.Add(current))
-                throw new ArgumentException("Ein Eintrag kann nicht unter sich selbst eingeordnet werden.");
+                throw new DomainValidationException("Ein Eintrag kann nicht unter sich selbst eingeordnet werden.");
             var parent = await db.Items.Where(x => x.Id == current)
                 .Select(x => new { x.ParentId, x.Kind }).FirstOrDefaultAsync(cancellationToken)
-                ?? throw new ArgumentException("Der übergeordnete Eintrag existiert nicht.");
-            if (directParent && kind == WorkspaceItemKind.Folder && parent.Kind != WorkspaceItemKind.Folder)
-                throw new ArgumentException("Ordner können nur auf der obersten Ebene oder unter anderen Ordnern liegen.");
+                ?? throw new DomainValidationException("Der übergeordnete Eintrag existiert nicht.");
+            if (directParent && !ItemKindRules.CanContain(parent.Kind, kind))
+                throw new DomainValidationException("Ordner können nur auf der obersten Ebene oder unter anderen Ordnern liegen.");
             parentId = parent.ParentId;
             directParent = false;
         }
     }
 
-    private static void ValidateValue(CustomFieldDefinition field, string? value)
+    // Returns the value to store, or null when the field is left empty.
+    private static string? NormalizeValue(CustomFieldDefinition field, string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return;
-        if (value.Length > 500) throw new ArgumentException($"{field.Name}: maximal 500 Zeichen.");
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        value = value.Trim();
+        if (value.Length > 500) throw new DomainValidationException($"{field.Name}: maximal 500 Zeichen.");
+        if (field.Type == CustomFieldType.Select)
+        {
+            // Select values are option ids; store them in one canonical format.
+            if (!Guid.TryParse(value, out var optionId) || field.Options.All(x => x.Id != optionId))
+                throw new DomainValidationException($"Ungültiger Wert für {field.Name}.");
+            return optionId.ToString();
+        }
         var valid = field.Type switch
         {
             CustomFieldType.Number => decimal.TryParse(value, NumberStyles.Number,
@@ -188,10 +194,9 @@ public sealed class WorkspaceItemService(AppDbContext db)
             CustomFieldType.Date => DateOnly.TryParseExact(value, "yyyy-MM-dd",
                 CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
             CustomFieldType.Boolean => value is "true" or "false",
-            CustomFieldType.Select => JsonSerializer.Deserialize<List<string>>(field.OptionsJson)!
-                .Contains(value, StringComparer.Ordinal),
             _ => true
         };
-        if (!valid) throw new ArgumentException($"Ungültiger Wert für {field.Name}.");
+        if (!valid) throw new DomainValidationException($"Ungültiger Wert für {field.Name}.");
+        return value;
     }
 }

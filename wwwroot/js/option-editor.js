@@ -1,19 +1,20 @@
-// Editable list of select options. Existing rows remember their original value so a rename can be told apart from a new option.
-import { escapeHtml } from './render.js?v=view-sorting';
+// Editable list of select options. Existing rows keep their option id so a rename can be told apart from a new option.
+import { escapeHtml } from './render.js?v=option-ids';
 
-const optionRow = (value, original = null) => `<div class="option-row"${original === null ? '' : ` data-original="${escapeHtml(original)}"`}><span class="option-bullet" aria-hidden="true"></span><input class="option-input" value="${escapeHtml(value)}" maxlength="500" aria-label="Option" /><button type="button" class="option-remove" data-option-remove title="Option entfernen" aria-label="Option „${escapeHtml(value)}“ entfernen">×</button></div>`;
+const optionRow = (name, id = null) => `<div class="option-row"${id === null ? '' : ` data-option-id="${escapeHtml(id)}"`}><span class="option-bullet" aria-hidden="true"></span><input class="option-input" value="${escapeHtml(name)}" maxlength="500" aria-label="Option" /><button type="button" class="option-remove" data-option-remove title="Option entfernen" aria-label="Option „${escapeHtml(name)}“ entfernen">×</button></div>`;
 
-export function renderOptionEditor(options = [], existing = false) {
-    return `<div class="option-editor"><div class="option-list">${options.map(option => optionRow(option, existing ? option : null)).join('')}</div><div class="option-add"><input class="option-new" maxlength="500" placeholder="Neue Option …" aria-label="Neue Option" /><button type="button" class="secondary-button" data-option-add>＋ Hinzufügen</button></div><p class="option-error form-error" aria-live="polite"></p></div>`;
+// Takes option names for a new field, or { id, name } objects for an existing one.
+export function renderOptionEditor(options = []) {
+    return `<div class="option-editor"><div class="option-list">${options.map(option => typeof option === 'string' ? optionRow(option) : optionRow(option.name, option.id)).join('')}</div><div class="option-add"><input class="option-new" maxlength="500" placeholder="Neue Option …" aria-label="Neue Option" /><button type="button" class="secondary-button" data-option-add>＋ Hinzufügen</button></div><p class="option-error form-error" aria-live="polite"></p></div>`;
 }
 
 // Emptied rows count as removed; text left in the "new option" input is included so it isn't lost.
 export function readOptions(editor) {
     const options = Array.from(editor.querySelectorAll('.option-row')).map(row =>
-        ({ original: row.dataset.original ?? null, value: row.querySelector('.option-input').value.trim() }));
+        ({ id: row.dataset.optionId ?? null, name: row.querySelector('.option-input').value.trim() }));
     const pending = editor.querySelector('.option-new').value.trim();
-    if (pending) options.push({ original: null, value: pending });
-    return options.filter(option => option.value);
+    if (pending) options.push({ id: null, name: pending });
+    return options.filter(option => option.name);
 }
 
 function addOption(editor) {

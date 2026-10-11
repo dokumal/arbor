@@ -1,4 +1,4 @@
-import { api } from './api.js';
+import { api } from './api.js?v=problem-details';
 
 const $ = id => document.getElementById(id);
 let current = null;

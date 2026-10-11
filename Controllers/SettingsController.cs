@@ -15,15 +15,7 @@ public sealed class SettingsController(StorageLocationService storage) : Control
     [HttpPut("/api/settings")]
     public async Task<IActionResult> Update([FromBody] StorageSettingsRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var message = await storage.ChangeAsync(new StoragePaths(request.DatabasePath, request.ImagesDirectory), cancellationToken);
-            return Ok(new { message, settings = storage.GetInfo() });
-        }
-        catch (ArgumentException exception) { return BadRequest(new { error = exception.Message }); }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return BadRequest(new { error = $"Der Speicherort konnte nicht geändert werden: {exception.Message}" });
-        }
+        var message = await storage.ChangeAsync(new StoragePaths(request.DatabasePath, request.ImagesDirectory), cancellationToken);
+        return Ok(new { message, settings = storage.GetInfo() });
     }
 }
