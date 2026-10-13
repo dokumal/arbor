@@ -1,0 +1,48 @@
+@{
+    ViewData["Title"] = "Aufwände";
+    ViewData["Page"] = "time";
+}
+@Html.AntiForgeryToken()
+@section Scripts {
+    <script type="module" src="~/js/time-entries.js" asp-append-version="true"></script>
+}
+<main>
+    <section class="page-heading">
+        <div><div class="eyebrow">AUFWÄNDE</div><h1>Wochenübersicht</h1><p>Klicke in einen freien Zeitraum oder ziehe über mehrere Zeilen, um einen Aufwand zu erfassen.</p></div>
+        <div class="page-meta"><span id="week-total">0:00 h diese Woche</span></div>
+    </section>
+    <section class="work-area time-area" aria-label="Aufwände der Woche">
+        <div class="toolbar time-toolbar">
+            <div class="date-nav">
+                <button type="button" id="previous-week" aria-label="Vorherige Woche" title="Vorherige Woche">‹</button>
+                <button type="button" id="next-week" aria-label="Nächste Woche" title="Nächste Woche">›</button>
+                <button type="button" id="current-week" class="today-button">Heute</button>
+                <strong id="week-label" aria-live="polite"></strong>
+            </div>
+            <div class="toolbar-actions">
+                <label class="weekend-toggle"><input type="checkbox" id="show-weekend" /><span>Wochenende</span></label>
+                <button type="button" id="new-entry-button" class="primary-button"><span>＋</span> Aufwand</button>
+            </div>
+        </div>
+        <div class="week-scroll"><div id="week-view" class="week-view"><div class="loading">Woche wird geladen …</div></div></div>
+    </section>
+</main>
+
+<dialog id="entry-dialog" class="modal narrow-modal" aria-labelledby="entry-dialog-heading">
+    <form id="entry-form">
+        <div class="modal-header"><div><span class="eyebrow">AUFWAND</span><h2 id="entry-dialog-heading">Aufwand erfassen</h2></div><button type="button" class="icon-button dialog-close" aria-label="Schließen">✕</button></div>
+        <div class="modal-body">
+            <div class="entry-time-grid">
+                <label><span class="form-label">Tag</span><input id="entry-date" type="date" required /></label>
+                <label><span class="form-label">Beginn</span><input id="entry-start" type="time" required /></label>
+                <label><span class="form-label">Ende</span><input id="entry-end" type="time" required /></label>
+            </div>
+            <p id="entry-duration" class="helper-text entry-duration"></p>
+            <label class="form-label" for="entry-description">Beschreibung</label>
+            <textarea id="entry-description" rows="4" maxlength="500" required placeholder="Woran hast du gearbeitet?"></textarea>
+        </div>
+        <div class="modal-footer"><button type="button" id="delete-entry-button" class="danger-button" hidden>Löschen</button><div class="footer-spacer"></div><span id="entry-form-error" class="form-error" role="alert"></span><button type="button" class="secondary-button dialog-close">Abbrechen</button><button type="submit" class="primary-button">Speichern</button></div>
+    </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

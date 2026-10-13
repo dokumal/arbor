@@ -12,7 +12,13 @@
 <body>
     <div class="app-shell">
         <header class="topbar">
-            <a class="brand" href="/"><span class="brand-mark">✳</span><span>arbor</span><span class="brand-divider"></span><span class="workspace-name">Mein Workspace</span></a>
+            <div class="topbar-left">
+                <a class="brand" href="/"><span class="brand-mark">✳</span><span>arbor</span><span class="brand-divider"></span><span class="workspace-name">Mein Workspace</span></a>
+                <nav class="main-nav" aria-label="Bereiche">
+                    <a href="/" aria-current="@(ViewData["Page"] as string == "workspace" ? "page" : null)">Aufgaben</a>
+                    <a href="/aufwaende" aria-current="@(ViewData["Page"] as string == "time" ? "page" : null)">Aufwände</a>
+                </nav>
+            </div>
             <div class="top-actions">
                 @await RenderSectionAsync("TopActions", required: false)
                 <a class="quiet-button" href="/settings" title="Einstellungen" aria-current="@(ViewData["Page"] as string == "settings" ? "page" : null)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Einstellungen</span></a>

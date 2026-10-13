@@ -97,3 +97,13 @@ public sealed class ViewConfigurationSaveRequest
     public bool SortDescending { get; set; }
     public bool HideCompleted { get; set; }
 }
+
+public sealed record TimeEntryDto(Guid Id, DateOnly Date, TimeOnly Start, TimeOnly End, string Description);
+
+public sealed class TimeEntrySaveRequest
+{
+    public DateOnly? Date { get; set; }
+    public TimeOnly? Start { get; set; }
+    public TimeOnly? End { get; set; }
+    public string Description { get; set; } = "";
+}

@@ -84,6 +84,39 @@ namespace QuireClone.Data.Migrations
                     b.ToTable("ItemLinks");
                 });
 
+            modelBuilder.Entity("QuireClone.Domain.TimeEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<TimeOnly>("End")
+                        .HasColumnType("TEXT");
+
+                    b.Property<TimeOnly>("Start")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date", "Start");
+
+                    b.ToTable("TimeEntries");
+                });
+
             modelBuilder.Entity("QuireClone.Domain.ViewConfiguration", b =>
                 {
                     b.Property<Guid>("Id")

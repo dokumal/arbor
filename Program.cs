@@ -16,6 +16,7 @@ builder.Services.AddScoped<WorkspaceItemService>();
 builder.Services.AddScoped<ItemLinkService>();
 builder.Services.AddScoped<CustomFieldService>();
 builder.Services.AddScoped<ViewConfigurationService>();
+builder.Services.AddScoped<TimeEntryService>();
 builder.Services.AddSingleton<TaskImageStorage>();
 builder.Services.AddSingleton<StorageLocationService>();
 builder.Services.AddScoped<WorkspaceService>();

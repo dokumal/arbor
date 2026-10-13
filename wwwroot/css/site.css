@@ -53,6 +53,11 @@ button:disabled{cursor:not-allowed;opacity:.5}
 /* App shell */
 .app-shell{min-height:100vh}
 .topbar{height:58px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,3vw,40px)}
+.topbar-left{display:flex;align-items:center;gap:24px;min-width:0}
+.main-nav{display:flex;align-items:center;gap:4px}
+.main-nav a{padding:7px 12px;border-radius:var(--radius-sm);color:var(--text-3);font-size:13px;font-weight:650;text-decoration:none;white-space:nowrap}
+.main-nav a:hover{background:var(--surface-2);color:var(--text)}
+.main-nav a[aria-current=page]{background:var(--accent-soft);color:var(--accent-text)}
 .brand{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:750;letter-spacing:-.05em;color:var(--text);text-decoration:none}
 .brand-mark{width:30px;height:30px;display:grid;place-items:center;background:var(--accent);color:#fff;border-radius:8px;font-size:19px;font-weight:400;letter-spacing:0}
 .brand-divider{height:22px;border-left:1px solid var(--border);margin:0 8px}
@@ -386,6 +391,52 @@ select.inline-field:focus{cursor:pointer}
 .settings-status{flex:1;font-size:13px;font-weight:600;color:var(--accent-text)}
 .settings-status.error{color:var(--danger)}
 .settings-actions .primary-button{margin-left:auto}
+/* Time entries: week view */
+.time-area{min-height:0}
+.time-toolbar .date-nav{margin:0}
+.time-toolbar .date-nav strong{min-width:0;margin-left:6px}
+.date-nav .today-button{width:auto;padding:0 11px;font-size:12px;font-weight:650}
+.weekend-toggle{display:inline-flex;align-items:center;gap:7px;color:var(--text-2);font-size:12px;font-weight:650;cursor:pointer}
+.weekend-toggle input{margin:0;accent-color:var(--accent)}
+.week-scroll{overflow:auto}
+.week-view{--hour-height:52px;min-width:640px;user-select:none;-webkit-user-select:none}
+.week-head,.week-body{display:grid;grid-template-columns:60px repeat(var(--days),minmax(0,1fr))}
+.week-head{background:var(--surface-2);border-bottom:1px solid var(--border)}
+.week-corner{display:flex;align-items:end;justify-content:center;padding:0 4px 9px;color:var(--text-3);font-size:10px;font-weight:700;font-variant-numeric:tabular-nums}
+.week-day-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:1px 6px;min-width:0;padding:9px 10px 8px;border-left:1px solid var(--border)}
+.week-day-head.today{box-shadow:inset 0 3px 0 var(--accent)}
+.week-day-name{color:var(--text-3);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.week-day-date{font-size:17px;font-weight:700;letter-spacing:-.02em}
+.week-day-head.today .week-day-name,.week-day-head.today .week-day-date{color:var(--accent-text)}
+.week-day-total{flex-basis:100%;min-height:16px;color:var(--text-2);font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+.week-hours{position:relative;height:calc(var(--hours) * var(--hour-height))}
+.week-hour{position:absolute;right:8px;transform:translateY(-50%);color:var(--text-3);font-size:10px;font-weight:650;font-variant-numeric:tabular-nums}
+.week-hour:first-child{transform:translateY(3px)}
+.week-day{position:relative;height:calc(var(--hours) * var(--hour-height));border-left:1px solid var(--border);cursor:pointer;
+    background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(var(--surface-3) 1px,transparent 1px);
+    background-size:100% var(--hour-height),100% calc(var(--hour-height) / 2)}
+.week-day.weekend,.week-day-head.weekend{background-color:var(--surface-2)}
+.week-day.today{background-color:#f7fbf9}
+.week-off-hours{position:absolute;left:0;right:0;background:#0f241a0b;pointer-events:none}
+.time-entry{position:absolute;z-index:1;display:flex;flex-direction:column;gap:1px;margin:0;padding:3px 7px 3px 8px;border:0;border-left:3px solid var(--accent);border-radius:5px;background:var(--accent-soft);box-shadow:0 0 0 1px var(--surface);color:var(--accent-text);text-align:left;font-size:11px;line-height:1.3;overflow:hidden;cursor:grab}
+.time-entry:hover{background:#cfe9db}
+.time-entry-time{color:var(--text-2);font-size:10px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.time-entry-text{min-width:0;font-weight:600;white-space:pre-line;overflow:hidden;overflow-wrap:anywhere}
+.time-entry.compact{flex-direction:row;align-items:center;gap:6px;padding-top:0;padding-bottom:0}
+.time-entry.compact .time-entry-text{white-space:nowrap;text-overflow:ellipsis}
+.time-entry-handle{position:absolute;left:0;right:0;height:8px;z-index:1;cursor:ns-resize}
+.time-entry-handle.start{top:0}
+.time-entry-handle.end{bottom:0}
+.time-entry.dragging{z-index:4;box-shadow:0 6px 18px #0f241a33;cursor:grabbing}
+.time-entry.saving{opacity:.6}
+.time-selection{position:absolute;left:2px;right:2px;z-index:2;padding:3px 7px;border:1px dashed var(--accent);border-radius:5px;background:#0a7a521f;color:var(--accent-text);font-size:10px;font-weight:700;overflow:hidden;pointer-events:none;font-variant-numeric:tabular-nums}
+.week-now{position:absolute;left:0;right:0;z-index:3;height:2px;margin-top:-1px;background:var(--danger);pointer-events:none}
+.week-now::before{content:"";position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--danger)}
+.entry-time-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px}
+.entry-time-grid label{min-width:0}
+.entry-duration{min-height:18px;margin:8px 0 0}
+.modal textarea{resize:vertical;line-height:1.5}
+
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;z-index:50;box-shadow:0 8px 22px #0f241a4d;font-size:13px;font-weight:550}
 
 @media(max-width:1100px){
@@ -407,6 +458,11 @@ select.inline-field:focus{cursor:pointer}
     .topbar{height:54px}
     .brand{font-size:19px}
     .workspace-name,.brand-divider{display:none}
+    .topbar-left{gap:10px}
+    .main-nav a{padding:7px 9px}
+    .time-toolbar{flex-wrap:wrap}
+    .entry-time-grid{grid-template-columns:1fr 1fr}
+    .entry-time-grid label:first-child{grid-column:1/-1}
     .page-heading{padding:20px 0 14px}
     .page-heading h1{font-size:22px}
     .work-area{min-height:550px}

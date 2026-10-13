@@ -10,6 +10,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<CustomFieldDefinition> CustomFields => Set<CustomFieldDefinition>();
     public DbSet<ItemFieldValue> ItemFieldValues => Set<ItemFieldValue>();
     public DbSet<ViewConfiguration> ViewConfigurations => Set<ViewConfiguration>();
+    public DbSet<TimeEntry> TimeEntries => Set<TimeEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -66,6 +67,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.VisibleFields).HasJsonConversion("VisibleFieldsJson");
             entity.Property(x => x.GroupByField).HasMaxLength(64);
             entity.Property(x => x.SortField).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<TimeEntry>(entity =>
+        {
+            entity.Property(x => x.Description).HasMaxLength(500).IsRequired();
+            entity.HasIndex(x => new { x.Date, x.Start });
         });
     }
 }
