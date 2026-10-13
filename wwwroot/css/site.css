@@ -165,6 +165,16 @@ main{max-width:1600px;margin:auto;padding:0 clamp(16px,3vw,40px) 48px}
 .row-create-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .row-create-button:hover{color:var(--accent-text);background:var(--accent-soft)}
 
+/* Quick add below the tree: new entries take their values from the view's filters */
+.quick-add{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:10px 16px 14px}
+.quick-add-button{min-height:32px;padding:0 12px;border:1px dashed var(--accent-border);border-radius:var(--radius-sm);background:var(--surface);color:var(--accent-text);font-size:12px;font-weight:650;white-space:nowrap}
+.quick-add-button:hover{border-color:var(--accent);background:var(--accent-soft)}
+.quick-add-summary{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-left:4px;color:var(--text-3);font-size:12px}
+.quick-add-value{padding:2px 7px;border-radius:5px;background:var(--surface-3);color:var(--text-2);font-size:11px}
+.quick-add-value strong{font-weight:650;color:var(--text)}
+.empty-state+.quick-add{justify-content:center;margin-top:-56px;padding-bottom:40px}
+.prefill-note{margin:0 0 4px;padding:7px 10px;border-left:3px solid var(--accent);border-radius:var(--radius-sm);background:var(--accent-soft);color:var(--accent-text);font-size:12px;font-weight:600}
+
 /* Inline-editable custom fields in the tree */
 .cell-edit{min-width:0;margin:0 -8px;cursor:default}
 .inline-field{width:100%;min-width:0;height:30px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text-2);font:inherit;padding:0 7px;outline:none;cursor:pointer;text-overflow:ellipsis}

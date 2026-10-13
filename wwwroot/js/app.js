@@ -1,5 +1,5 @@
 import { api } from './api.js?v=problem-details';
-import { escapeHtml, fieldLabel, kinds, renderView, statuses, descriptionText, customFieldText } from './render.js?v=option-ids';
+import { escapeHtml, fieldLabel, kinds, renderView, statuses, descriptionText, customFieldText } from './render.js?v=quick-add';
 import { getDescription, setDescription } from './description-editor.js';
 import { initializeTaskDisplay } from './task-display.js';
 import { initializeTreeDrag } from './tree-drag.js?v=folders';
@@ -8,6 +8,7 @@ import { timelineIntervals, shiftTimelineDate } from './timeline-range.js';
 import { isDocument, isFolder, isTask, canContain, itemIcon, itemKinds } from './item-relations.js?v=folders';
 import { initializeItemLinks } from './item-links.js?v=problem-details';
 import { initializeOptionEditors, readOptions, renderOptionEditor } from './option-editor.js?v=option-ids';
+import { prefilledItem, prefilledKeys, viewPrefill } from './view-prefill.js';
 
 const $ = id => document.getElementById(id);
 initializeTaskDisplay($('task-drawer'), $('task-display-toggle'));
@@ -165,9 +166,19 @@ function refreshDrawerFields(values) {
         '<p class="helper-text">Noch keine eigenen Felder.</p>';
 }
 
+// A new entry that takes its values from the filters of the current view.
+function openPrefilledItem(kind) {
+    const view = currentView();
+    const prefill = viewPrefill(view, workspace.customFields);
+    const labels = prefilledKeys(prefill, kind).map(key => key === 'title' ? 'Titel' : fieldLabel(key, workspace.customFields));
+    openTask(null, { kind, prefill: prefilledItem(prefill, kind),
+        prefillNote: labels.length ? `Vorbelegt aus „${view.name}“: ${labels.join(', ')}` : '' });
+}
+
 function openTask(id = null, options = {}) {
     const task = id ? taskById(id) : null;
     const kind = task?.kind || options.kind || 'Task';
+    const prefill = task ? null : options.prefill;
     const document = kind === 'Document';
     const folder = kind === 'Folder';
     $('task-form').reset();
@@ -182,14 +193,17 @@ function openTask(id = null, options = {}) {
     $('item-custom-fields-section').hidden = folder;
     $('task-drawer').classList.toggle('document-editor', document);
     $('task-drawer').classList.toggle('folder-editor', folder);
-    $('task-title').value = task?.title || '';
-    $('task-status').value = task?.status || options.status || 'Todo';
-    $('task-start').value = task?.startDate || '';
-    $('task-due').value = task?.dueDate || '';
+    $('task-title').value = task?.title || prefill?.title || '';
+    $('task-status').value = task?.status || options.status || prefill?.status || 'Todo';
+    $('task-start').value = task?.startDate || prefill?.startDate || '';
+    $('task-due').value = task?.dueDate || prefill?.dueDate || '';
+    $('item-prefill-note').textContent = prefill ? options.prefillNote : '';
+    $('item-prefill-note').hidden = !prefill || !options.prefillNote;
+    $('task-form').dataset.prefilled = prefill ? 'true' : '';
     const excluded = task ? descendantsOf(task.id) : new Set();
     $('task-parent').innerHTML = '<option value="">Keine</option>' + workspace.items.filter(item => !excluded.has(item.id) && canContain(item.kind, kind)).map(item => `<option value="${item.id}">${itemIcon(item)} ${escapeHtml(item.title)}</option>`).join('');
     $('task-parent').value = task?.parentId || options.parentId || '';
-    $('task-custom-fields').innerHTML = folder ? '' : workspace.customFields.map(field => customInput(field, task?.fields[field.id])).join('') || '<p class="helper-text">Noch keine eigenen Felder.</p>';
+    $('task-custom-fields').innerHTML = folder ? '' : workspace.customFields.map(field => customInput(field, task?.fields[field.id] ?? prefill?.fields[field.id])).join('') || '<p class="helper-text">Noch keine eigenen Felder.</p>';
     $('delete-task-button').hidden = !task;
     const children = task ? workspace.items.filter(item => item.parentId === task.id) : [];
     $('task-children-section').hidden = !task;
@@ -227,11 +241,15 @@ async function saveTask(event) {
         startDate: kind === 'Task' ? $('task-start').value || null : null,
         dueDate: kind === 'Task' ? $('task-due').value || null : null, fields
     };
+    const prefilled = $('task-form').dataset.prefilled === 'true';
     try {
-        await api(id ? `/api/items/${id}` : '/api/items', { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
+        const saved = await api(id ? `/api/items/${id}` : '/api/items', { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
         closeTask();
         await loadWorkspace(kind !== 'Task' && ui.kind !== 'Tree' ? null : ui.viewId, kind !== 'Task' ? 'Tree' : ui.kind);
-        notify(`${itemKinds[kind]} ${id ? 'gespeichert' : 'erstellt'}.`);
+        // Values changed in the drawer can take the entry out of the view it was created for.
+        if (prefilled && !workspace.matchingItemIds.includes(saved?.id))
+            notify(`${itemKinds[kind]} erstellt, passt aber nicht zu allen Filtern dieser Konfiguration und wird hier nicht angezeigt.`);
+        else notify(`${itemKinds[kind]} ${id ? 'gespeichert' : 'erstellt'}.`);
     } catch (error) { showError('task-form-error', error); }
 }
 
@@ -446,6 +464,7 @@ document.addEventListener('click', async event => {
         case 'new-task': openTask(null, { status: action.dataset.status, parentId: action.dataset.parentId }); break;
         case 'new-document': openTask(null, { kind: 'Document', parentId: action.dataset.parentId }); break;
         case 'new-folder': openTask(null, { kind: 'Folder', parentId: action.dataset.parentId }); break;
+        case 'quick-add': openPrefilledItem(action.dataset.kind); break;
         case 'open-task': openTask(action.dataset.id); break;
         case 'toggle': event.stopPropagation(); ui.expanded.has(action.dataset.id) ? ui.expanded.delete(action.dataset.id) : ui.expanded.add(action.dataset.id); render(); break;
         case 'toggle-group': {

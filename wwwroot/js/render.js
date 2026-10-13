@@ -1,5 +1,6 @@
 import { getTimelineRange, timelineIntervals } from './timeline-range.js';
 import { isDocument, isFolder, isTask, itemIcon, itemKinds, relatedItems } from './item-relations.js?v=folders';
+import { prefilledItem, prefilledKeys, viewPrefill } from './view-prefill.js';
 
 export const kinds = {
     Tree: { label: 'Baum', icon: '☷', description: 'Ordner, Aufgaben und Dokumente gemeinsam organisiert' },
@@ -108,6 +109,16 @@ function rowCreateActions(item) {
     return `<div class="row-create-actions">${isFolder(item) ? `<button type="button" class="row-create-button" data-action="new-folder" data-parent-id="${item.id}" title="Unterordner erstellen" aria-label="Ordner unter „${escapeHtml(item.title)}“ erstellen">${createFolderIcon}</button>` : ''}<button type="button" class="row-create-button" data-action="new-task" data-parent-id="${item.id}" title="Unteraufgabe erstellen" aria-label="Aufgabe unter „${escapeHtml(item.title)}“ erstellen">${createTaskIcon}</button><button type="button" class="row-create-button" data-action="new-document" data-parent-id="${item.id}" title="Untergeordnetes Dokument erstellen" aria-label="Dokument unter „${escapeHtml(item.title)}“ erstellen">${createDocumentIcon}</button></div>`;
 }
 
+// Creates entries that already meet the view's filters, so they show up in it right away.
+function quickAdd(view, definitions) {
+    const prefill = viewPrefill(view, definitions);
+    if (!prefill.kinds.length) return '';
+    const item = prefilledItem(prefill, prefill.kinds[0]);
+    const values = prefilledKeys(prefill, prefill.kinds[0]).map(key =>
+        `<span class="quick-add-value">${escapeHtml(key === 'title' ? 'Titel' : fieldLabel(key, definitions))}: <strong>${escapeHtml(fieldValue(item, key, definitions))}</strong></span>`).join('');
+    return `<div class="quick-add">${prefill.kinds.map(kind => `<button type="button" class="quick-add-button" data-action="quick-add" data-kind="${kind}">＋ ${itemKinds[kind]}</button>`).join('')}${values ? `<span class="quick-add-summary">Vorbelegt aus den Filtern: ${values}</span>` : ''}</div>`;
+}
+
 function itemSymbol(item) {
     return isTask(item) ? `<span class="status-dot ${item.status}"></span>` :
         `<span class="${isFolder(item) ? 'folder-symbol' : 'document-symbol'}" title="${itemKinds[item.kind]}">${itemIcon(item)}</span>`;
@@ -156,7 +167,9 @@ export function renderView(data, view, ui) {
     const matchingItems = data.items.filter(task => matching.has(task.id));
     const tasks = sortItems(matchingItems.filter(isTask), view, data.customFields).map(task => ({ ...task,
         relatedDocuments: relatedItems(data.items, data.links, task.id).map(relation => relation.item) }));
-    if (!matchingItems.length && view.kind !== 'Timeline') return empty(view.filters.length > 0 || view.hideCompleted || !!data.searchQuery);
+    const filtered = view.filters.length > 0 || view.hideCompleted || !!data.searchQuery;
+    if (!matchingItems.length && view.kind !== 'Timeline')
+        return empty(filtered) + (view.kind === 'Tree' && filtered ? quickAdd(view, data.customFields) : '');
     if (view.kind !== 'Tree' && !tasks.length && view.kind !== 'Timeline')
         return '<div class="empty-state"><h3>Keine passenden Aufgaben</h3><p>Ordner und Dokumente findest du in der Baumansicht.</p><button class="secondary-button" data-action="select-kind" data-kind="Tree">Zum gemeinsamen Baum</button></div>';
     switch (view.kind) {
@@ -203,7 +216,7 @@ function renderTree(allTasks, matching, view, definitions, expanded, selectedId,
     };
     const groups = groupTasks(allTasks.filter(task => matching.has(task.id)), view, definitions);
     const body = groups ? groups.map(group => `<div class="tree-group">${groupHeading(view, group, collapsed)}${groupIsCollapsed(view, group, collapsed) ? '' : rowsFor(group.tasks, false)}</div>`).join('') : rowsFor(allTasks, true);
-    return `<div class="table-scroll"><div class="task-table"><div class="table-head" style="${grid}"><span>Eintrag</span>${columns.map(key => `<span>${escapeHtml(fieldLabel(key, definitions))}</span>`).join('')}<span aria-hidden="true"></span></div>${body}</div></div>`;
+    return `<div class="table-scroll"><div class="task-table"><div class="table-head" style="${grid}"><span>Eintrag</span>${columns.map(key => `<span>${escapeHtml(fieldLabel(key, definitions))}</span>`).join('')}<span aria-hidden="true"></span></div>${body}</div></div>${quickAdd(view, definitions)}`;
 }
 
 function renderTreeCell(task, key, definitions) {

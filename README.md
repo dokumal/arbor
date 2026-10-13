@@ -41,6 +41,7 @@ Die Datenbank ist eine einzelne Datei (ohne WAL-Nebendateien). Für ein Backup g
 - Pro Ansicht einstellbar: erledigte Aufgaben ausblenden
 - Datumsfilter mit relativen Werten wie „Heute“ oder „In 7 Tagen“, die sich täglich mitbewegen; die Ansicht „Anstehend“ zeigt damit offene Aufgaben, die überfällig oder in den nächsten 7 Tagen fällig sind
 - Überfällige und heute fällige offene Aufgaben werden in allen Darstellungen farblich hervorgehoben
+- Schnellanlage unter der Baumansicht: Neue Aufgaben und Dokumente übernehmen die Filterwerte der gewählten Konfiguration („ist“, „enthält“ sowie „vor“/„nach“ bei Datumsfeldern) und erscheinen so direkt in ihr. Angeboten werden nur Eintragstypen, die die Filter erfüllen können; weicht ein gespeicherter Eintrag doch ab, gibt es einen Hinweis
 - Eigene Felder direkt in der Baum-/Tabellenansicht bearbeiten; Optionen von Auswahlfeldern einzeln anlegen, umbenennen und löschen
 - Statuswechsel im Kanban per Drag & Drop
 - Aufgabenbalken in der Zeitachse verschieben oder über Griffe am Anfang und Ende verlängern/verkürzen; Tagesraster, Datumsvorschau und automatische Speicherung

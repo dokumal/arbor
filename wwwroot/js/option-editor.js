@@ -1,5 +1,5 @@
 // Editable list of select options. Existing rows keep their option id so a rename can be told apart from a new option.
-import { escapeHtml } from './render.js?v=option-ids';
+import { escapeHtml } from './render.js?v=quick-add';
 
 const optionRow = (name, id = null) => `<div class="option-row"${id === null ? '' : ` data-option-id="${escapeHtml(id)}"`}><span class="option-bullet" aria-hidden="true"></span><input class="option-input" value="${escapeHtml(name)}" maxlength="500" aria-label="Option" /><button type="button" class="option-remove" data-option-remove title="Option entfernen" aria-label="Option „${escapeHtml(name)}“ entfernen">×</button></div>`;
 
