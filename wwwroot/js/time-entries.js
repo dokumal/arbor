@@ -144,6 +144,10 @@ const clearSelection = () => $('week-view').querySelector('.time-selection')?.re
 
 // --- Dialog ---
 
+// The time inputs take 5-minute steps, so other times (such as the end of the day, stored as 23:59) are rounded onto that grid.
+const inputStep = 5;
+const inputTime = time => formatTime(Math.min(Math.round(toMinutes(time) / inputStep) * inputStep, dayMinutes - inputStep));
+
 function updateDuration() {
     const start = $('entry-start').value, end = $('entry-end').value;
     $('entry-duration').textContent = start && end && toMinutes(end) > toMinutes(start)
@@ -154,8 +158,8 @@ function openDialog(entry) {
     state.editingId = entry.id || null;
     $('entry-dialog-heading').textContent = entry.id ? 'Aufwand bearbeiten' : 'Aufwand erfassen';
     $('entry-date').value = entry.date;
-    $('entry-start').value = entry.start.slice(0, 5);
-    $('entry-end').value = entry.end.slice(0, 5);
+    $('entry-start').value = inputTime(entry.start);
+    $('entry-end').value = inputTime(entry.end);
     $('entry-description').value = entry.description || '';
     $('delete-entry-button').hidden = !entry.id;
     $('entry-form-error').textContent = '';

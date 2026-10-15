@@ -301,7 +301,7 @@ select.inline-field:focus{cursor:pointer}
 .document-editor .sun-editor .se-wrapper .se-wrapper-inner{min-height:300px}
 .task-drawer .sun-editor{width:100%;border-color:var(--border-strong);border-radius:var(--radius-sm);overflow:hidden}
 .task-drawer .sun-editor .se-toolbar{background:var(--surface-2);outline-color:var(--border)}
-.task-drawer .sun-editor .sun-editor-editable{font-family:inherit;font-size:13px;line-height:1.6;color:var(--text)}
+.task-drawer .sun-editor .sun-editor-editable{font-family:inherit;font-size:15px;line-height:1.6;color:var(--text)}
 .task-drawer .sun-editor .sun-editor-editable img{max-width:100%;height:auto}
 .children-section{border-top:1px solid var(--border);margin-top:26px}
 .child-link{display:flex;align-items:center;gap:6px;border:1px solid var(--surface-3);background:var(--surface-2);width:100%;text-align:left;border-radius:var(--radius-sm);margin:5px 0;padding:9px 10px;color:var(--text);font-size:13px}
