@@ -12,6 +12,9 @@ public static class FieldKeys
     public const string StartDate = "startDate";
     public const string DueDate = "dueDate";
 
+    // A status filter value is a status id, or this prefix and a StatusCategory for every status of that category.
+    public const string StatusCategoryPrefix = "category:";
+
     private const string CustomPrefix = "field:";
 
     public static IReadOnlySet<string> BuiltIn { get; } =

@@ -7,12 +7,14 @@ using QuireClone.Domain;
 
 namespace QuireClone.Services;
 
-public sealed partial class WorkspaceService(AppDbContext db)
+public sealed partial class WorkspaceService(AppDbContext db, StatusService statusService)
 {
     public async Task<WorkspaceDto> GetAsync(Guid? viewId, CancellationToken cancellationToken)
     {
         var items = await db.Items.AsNoTracking().Include(x => x.FieldValues)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToListAsync(cancellationToken);
+        var statuses = await statusService.ListAsync(cancellationToken);
+        var categories = statuses.ToDictionary(x => x.Id, x => x.Category);
         var fields = await db.CustomFields.AsNoTracking().OrderBy(x => x.SortOrder)
             .ToListAsync(cancellationToken);
         var views = await db.ViewConfigurations.AsNoTracking().OrderBy(x => x.SortOrder)
@@ -22,28 +24,35 @@ public sealed partial class WorkspaceService(AppDbContext db)
 
         var links = await db.ItemLinks.AsNoTracking().ToListAsync(cancellationToken);
         var itemDtos = items.Select(x => new WorkspaceItemDto(x.Id, x.Kind, x.Title, x.Description,
-            x.ParentId, x.Status, x.StartDate, x.DueDate, x.SortOrder,
+            x.ParentId, x.StatusId, x.StartDate, x.DueDate, x.SortOrder,
             x.UpdatedAt, x.FieldValues.ToDictionary(v => v.FieldId, v => v.Value))).ToList();
         var hideCompleted = selectedView?.HideCompleted == true;
-        var matching = itemDtos.Where(x => activeFilters.All(f => Matches(x, f)) &&
-                !(hideCompleted && ItemKindRules.HasSchedule(x.Kind) && x.Status == Domain.TaskStatus.Done))
+        var matching = itemDtos.Where(x => activeFilters.All(f => Matches(x, f, categories)) &&
+                !(hideCompleted && Category(x, categories) == StatusCategory.Done))
             .Select(x => x.Id).ToList();
 
         return new WorkspaceDto(itemDtos, matching,
+            statuses.Select(x => new TaskStatusDto(x.Id, x.Name, x.Category, x.Color, x.SortOrder)).ToList(),
             fields.Select(x => new CustomFieldDto(x.Id, x.Name, x.Type, x.Options, x.SortOrder)).ToList(),
             views.Select(x => new ViewConfigurationDto(x.Id, x.Name, x.Kind, x.Filters, x.VisibleFields,
                 x.GroupByField, x.SortField, x.SortDescending, x.HideCompleted, x.SortOrder)).ToList(),
             links.Select(x => new ItemLinkDto(x.TaskId, x.DocumentId)).ToList());
     }
 
-    private static bool Matches(WorkspaceItemDto item, ViewFilter filter)
+    private static StatusCategory? Category(WorkspaceItemDto item, Dictionary<Guid, StatusCategory> categories) =>
+        item.StatusId is Guid id && categories.TryGetValue(id, out var category) ? category : null;
+
+    private static bool Matches(WorkspaceItemDto item, ViewFilter filter, Dictionary<Guid, StatusCategory> categories)
     {
         var value = filter.Field switch
         {
             FieldKeys.Title => item.Title,
             FieldKeys.Description => item.Description,
             FieldKeys.Kind => item.Kind.ToString(),
-            FieldKeys.Status => ItemKindRules.HasSchedule(item.Kind) ? item.Status.ToString() : null,
+            // A status filter names either one status or a whole category ("category:Done").
+            FieldKeys.Status when filter.Value.Trim().StartsWith(FieldKeys.StatusCategoryPrefix, StringComparison.Ordinal) =>
+                Category(item, categories) is { } category ? FieldKeys.StatusCategoryPrefix + category : null,
+            FieldKeys.Status => item.StatusId?.ToString(),
             FieldKeys.StartDate => item.StartDate?.ToString("yyyy-MM-dd"),
             FieldKeys.DueDate => item.DueDate?.ToString("yyyy-MM-dd"),
             _ when FieldKeys.TryGetCustomFieldId(filter.Field, out var fieldId) => item.Fields.GetValueOrDefault(fieldId),

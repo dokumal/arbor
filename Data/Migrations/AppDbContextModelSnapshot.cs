@@ -84,6 +84,38 @@ namespace QuireClone.Data.Migrations
                     b.ToTable("ItemLinks");
                 });
 
+            modelBuilder.Entity("QuireClone.Domain.TaskStatusDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("TaskStatuses", (string)null);
+                });
+
             modelBuilder.Entity("QuireClone.Domain.TimeEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -196,9 +228,7 @@ namespace QuireClone.Data.Migrations
                     b.Property<DateOnly?>("StartDate")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(16)
+                    b.Property<Guid?>("StatusId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -212,6 +242,8 @@ namespace QuireClone.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DueDate");
+
+                    b.HasIndex("StatusId");
 
                     b.HasIndex("ParentId", "SortOrder")
                         .HasDatabaseName("IX_Tasks_ParentTaskId_SortOrder");
@@ -266,7 +298,14 @@ namespace QuireClone.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("FK_Tasks_Tasks_ParentTaskId");
 
+                    b.HasOne("QuireClone.Domain.TaskStatusDefinition", "Status")
+                        .WithMany()
+                        .HasForeignKey("StatusId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("ParentItem");
+
+                    b.Navigation("Status");
                 });
 
             modelBuilder.Entity("QuireClone.Domain.CustomFieldDefinition", b =>

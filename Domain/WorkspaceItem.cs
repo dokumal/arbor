@@ -1,6 +1,5 @@
 namespace QuireClone.Domain;
 
-public enum TaskStatus { Todo, Doing, Done }
 public enum WorkspaceItemKind { Task, Document, Folder }
 
 public sealed class WorkspaceItem
@@ -12,7 +11,9 @@ public sealed class WorkspaceItem
     public Guid? ParentId { get; set; }
     public WorkspaceItem? ParentItem { get; set; }
     public List<WorkspaceItem> Children { get; set; } = [];
-    public TaskStatus Status { get; set; }
+    // Only tasks have a status.
+    public Guid? StatusId { get; set; }
+    public TaskStatusDefinition? Status { get; set; }
     public DateOnly? StartDate { get; set; }
     public DateOnly? DueDate { get; set; }
     public int SortOrder { get; set; }

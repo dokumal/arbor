@@ -14,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>((services, options) =>
     options.UseSqlite(services.GetRequiredService<StorageSettings>().ConnectionString));
 builder.Services.AddScoped<WorkspaceItemService>();
 builder.Services.AddScoped<ItemLinkService>();
+builder.Services.AddScoped<StatusService>();
 builder.Services.AddScoped<CustomFieldService>();
 builder.Services.AddScoped<ViewConfigurationService>();
 builder.Services.AddScoped<TimeEntryService>();

@@ -1,5 +1,6 @@
 import { api } from './api.js?v=problem-details';
-import { escapeHtml, statuses } from './render.js?v=quick-add';
+import { escapeHtml } from './render.js?v=statuses';
+import { statusName } from './statuses.js';
 import { relatedItems, isDocument, isFolder, itemIcon } from './item-relations.js?v=folders';
 
 export function initializeItemLinks(getWorkspace, refreshWorkspace, notify) {
@@ -18,7 +19,7 @@ export function initializeItemLinks(getWorkspace, refreshWorkspace, notify) {
         if (!current || isFolder(current)) return;
         document.getElementById('item-links-heading').textContent = isDocument(current) ? 'Zugehörige Aufgaben' : 'Zugehörige Dokumente';
         const related = relatedItems(workspace.items, workspace.links, id);
-        list.innerHTML = related.map(({ item, explicit, inTree }) => `<div class="related-item"><button type="button" class="related-item-open" data-action="open-task" data-id="${item.id}"><span>${itemIcon(item)}</span><strong>${escapeHtml(item.title)}</strong>${isDocument(item) ? '' : `<span class="related-status">${escapeHtml(statuses[item.status])}</span>`}</button><span class="relation-source">${inTree ? 'Im Baum' : 'Verknüpft'}</span>${explicit ? `<button type="button" class="icon-button unlink-item" data-id="${item.id}" aria-label="Verknüpfung entfernen" title="Verknüpfung entfernen">×</button>` : ''}</div>`).join('') || '<p class="helper-text">Noch keine zugehörigen Einträge.</p>';
+        list.innerHTML = related.map(({ item, explicit, inTree }) => `<div class="related-item"><button type="button" class="related-item-open" data-action="open-task" data-id="${item.id}"><span>${itemIcon(item)}</span><strong>${escapeHtml(item.title)}</strong>${isDocument(item) ? '' : `<span class="related-status">${escapeHtml(statusName(item.statusId))}</span>`}</button><span class="relation-source">${inTree ? 'Im Baum' : 'Verknüpft'}</span>${explicit ? `<button type="button" class="icon-button unlink-item" data-id="${item.id}" aria-label="Verknüpfung entfernen" title="Verknüpfung entfernen">×</button>` : ''}</div>`).join('') || '<p class="helper-text">Noch keine zugehörigen Einträge.</p>';
         const existing = new Set(related.map(relation => relation.item.id));
         const choices = workspace.items.filter(item => item.kind === (isDocument(current) ? 'Task' : 'Document') && !existing.has(item.id));
         picker.innerHTML = `<option value="">${isDocument(current) ? 'Aufgabe auswählen …' : 'Dokument auswählen …'}</option>` + choices.map(item => `<option value="${item.id}">${escapeHtml(item.title)}</option>`).join('');

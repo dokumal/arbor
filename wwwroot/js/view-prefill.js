@@ -1,3 +1,5 @@
+import { defaultStatusId, statusForFilterValue } from './statuses.js';
+
 // Values for a new entry so that it already meets the filters of a view.
 // Only filters that name a value are used ("ist", "enthält", "vor", "nach"); the rest leave the field empty.
 
@@ -47,12 +49,15 @@ function possibleKinds(filters) {
 
 export function viewPrefill(view, definitions) {
     const filters = view?.filters || [];
-    const prefill = { kinds: possibleKinds(filters), title: '', status: null, startDate: null, dueDate: null, fields: {}, keys: [] };
+    const prefill = { kinds: possibleKinds(filters), title: '', statusId: null, startDate: null, dueDate: null, fields: {}, keys: [] };
     const set = (key, apply) => { apply(); if (!prefill.keys.includes(key)) prefill.keys.push(key); };
     for (const { field: key, operator, value } of filters) {
         if (!value.trim()) continue;
         if (key === 'title' && ['equals', 'contains'].includes(operator)) set(key, () => { prefill.title = value.trim(); });
-        else if (key === 'status' && operator === 'equals') set(key, () => { prefill.status = value; });
+        else if (key === 'status' && operator === 'equals') {
+            const statusId = statusForFilterValue(value.trim());
+            if (statusId) set(key, () => { prefill.statusId = statusId; });
+        }
         else if (key === 'startDate' || key === 'dueDate') {
             const date = dateFor(operator, value);
             if (date) set(key, () => { prefill[key] = date; });
@@ -76,7 +81,7 @@ export function viewPrefill(view, definitions) {
 export function prefilledItem(prefill, kind) {
     const task = kind === 'Task';
     return {
-        kind, title: prefill.title, status: task && prefill.status || 'Todo',
+        kind, title: prefill.title, statusId: task ? prefill.statusId || defaultStatusId() : null,
         startDate: task ? prefill.startDate : null, dueDate: task ? prefill.dueDate : null,
         fields: kind === 'Folder' ? {} : { ...prefill.fields }
     };

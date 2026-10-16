@@ -38,15 +38,25 @@ Die Datenbank ist eine einzelne Datei (ohne WAL-Nebendateien). Für ein Backup g
 - Pro Ansicht auswählbare sichtbare Felder und kombinierbare Filter, auch auf eigene Felder
 - Gespeicherte Gruppierung nach Standard- oder eigenem Feld für Baum/Tabelle, Kanban und Zeitachse; Gruppen lassen sich einzeln ein- und ausklappen
 - Gespeicherte Sortierung pro Ansicht (auf- oder absteigend, leere Werte am Ende); im Baum wird innerhalb jeder Ebene sortiert, ohne Sortierung gilt die manuelle Reihenfolge
-- Pro Ansicht einstellbar: erledigte Aufgaben ausblenden
+- Pro Ansicht einstellbar: abgeschlossene Aufgaben ausblenden
 - Datumsfilter mit relativen Werten wie „Heute“ oder „In 7 Tagen“, die sich täglich mitbewegen; die Ansicht „Anstehend“ zeigt damit offene Aufgaben, die überfällig oder in den nächsten 7 Tagen fällig sind
 - Überfällige und heute fällige offene Aufgaben werden in allen Darstellungen farblich hervorgehoben
 - Schnellanlage unter der Baumansicht: Neue Aufgaben und Dokumente übernehmen die Filterwerte der gewählten Konfiguration („ist“, „enthält“ sowie „vor“/„nach“ bei Datumsfeldern) und erscheinen so direkt in ihr. Angeboten werden nur Eintragstypen, die die Filter erfüllen können; weicht ein gespeicherter Eintrag doch ab, gibt es einen Hinweis
 - Eigene Felder direkt in der Baum-/Tabellenansicht bearbeiten; Optionen von Auswahlfeldern einzeln anlegen, umbenennen und löschen
-- Statuswechsel im Kanban per Drag & Drop
+- Statuswechsel im Kanban per Drag & Drop; im Baum schließt ein Klick auf den Statuspunkt eine Aufgabe ab (oder öffnet sie wieder), ein Rechtsklick wählt einen beliebigen Status
 - Aufgabenbalken in der Zeitachse verschieben oder über Griffe am Anfang und Ende verlängern/verkürzen; Tagesraster, Datumsvorschau und automatische Speicherung
 - Zeitachse mit wählbaren Intervallen Woche, Monat und 3 Monate; die Auswahl bleibt im Browser gespeichert
 - SunEditor für Überschriften, Listen, Tabellen und Bilder in Aufgabenbeschreibungen. Bilder lassen sich auch aus der Zwischenablage einfügen und werden im eingestellten Bilder-Ordner gespeichert (Standard: `.local/images`).
+
+## Status
+
+Die Status von Aufgaben sind frei konfigurierbar. Jeder Status gehört zu einer festen Kategorie: **Offen**, **In Arbeit** oder **Abgeschlossen**. Die App wertet nur die Kategorie aus: Abgeschlossene Aufgaben gelten als erledigt, werden nie als überfällig markiert und lassen sich pro Ansicht ausblenden. Neue Aufgaben erhalten den ersten offenen Status.
+
+- Verwaltung unter **Eigene Felder** im Eintrag „Status“: Status umbenennen, Farbe wählen, hinzufügen, entfernen und per Ziehen (oder Pfeiltasten am Griff) sortieren, auch in eine andere Kategorie
+- Im Kanban ist jeder Status eine Spalte. Ein Klick auf die Spaltenüberschrift öffnet ein Menü zum Umbenennen, für Farbe und Kategorie, zum Einfügen eines Status links oder rechts und zum Löschen; „＋ Status“ am Ende des Boards legt eine neue Spalte an
+- Beim Löschen eines Status, der noch verwendet wird, wählt man den Status, der seine Aufgaben übernimmt. Gespeicherte Filter auf den gelöschten Status zeigen danach auf diesen Ersatz
+- Jede Kategorie braucht mindestens einen Status
+- Filter können einen einzelnen Status oder eine ganze Kategorie nennen („Alle offenen“, „Alle in Arbeit“, „Alle abgeschlossenen“). Solche Filter bleiben gültig, wenn später Status dazukommen
 
 ## Aufwände
 

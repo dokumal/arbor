@@ -1,6 +1,7 @@
 import { getTimelineRange, timelineIntervals } from './timeline-range.js';
 import { isDocument, isFolder, isTask, itemIcon, itemKinds, relatedItems } from './item-relations.js?v=folders';
-import { prefilledItem, prefilledKeys, viewPrefill } from './view-prefill.js';
+import { prefilledItem, prefilledKeys, viewPrefill } from './view-prefill.js?v=statuses';
+import { allStatuses, isCompleted, statusById, statusName } from './statuses.js';
 
 export const kinds = {
     Tree: { label: 'Baum', icon: '☷', description: 'Ordner, Aufgaben und Dokumente gemeinsam organisiert' },
@@ -8,7 +9,6 @@ export const kinds = {
     Calendar: { label: 'Kalender', icon: '▦', description: 'Termine auf einen Blick' },
     Timeline: { label: 'Zeitachse', icon: '▬', description: 'Aufgaben im zeitlichen Verlauf' }
 };
-export const statuses = { Todo: 'Offen', Doing: 'In Arbeit', Done: 'Erledigt' };
 export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 
@@ -36,7 +36,7 @@ export function fieldValue(task, key, definitions) {
         return value || '';
     }
     if (key === 'kind') return itemKinds[task.kind] || 'Aufgabe';
-    if (key === 'status') return isTask(task) ? statuses[task.status] || task.status : '';
+    if (key === 'status') return isTask(task) ? statusName(task.statusId) : '';
     if (key === 'startDate' || key === 'dueDate') return formatDate(task[key]);
     if (key === 'description') return descriptionText(task.description);
     return task[key] || '';
@@ -64,13 +64,13 @@ const localToday = () => {
 
 // 'overdue' or 'today' for open tasks, used to highlight due dates in every view.
 export function dueState(task, today = localToday()) {
-    if (!isTask(task) || task.status === 'Done' || !task.dueDate) return null;
+    if (!isTask(task) || isCompleted(task) || !task.dueDate) return null;
     return task.dueDate < today ? 'overdue' : task.dueDate === today ? 'today' : null;
 }
 const dueTitle = { overdue: 'Überfällig', today: 'Heute fällig' };
 
 function sortValue(item, key, definitions) {
-    if (key === 'status') return isTask(item) ? Object.keys(statuses).indexOf(item.status) : null;
+    if (key === 'status') return isTask(item) ? allStatuses().findIndex(status => status.id === item.statusId) : null;
     if (key === 'kind') return Object.keys(itemKinds).indexOf(item.kind);
     if (!key.startsWith('field:')) return item[key] || null;
     const field = definitions.find(definition => definition.id === key.slice(6));
@@ -119,9 +119,18 @@ function quickAdd(view, definitions) {
     return `<div class="quick-add">${prefill.kinds.map(kind => `<button type="button" class="quick-add-button" data-action="quick-add" data-kind="${kind}">＋ ${itemKinds[kind]}</button>`).join('')}${values ? `<span class="quick-add-summary">Vorbelegt aus den Filtern: ${values}</span>` : ''}</div>`;
 }
 
+// The shape shows the category, the colour the single status.
+export function statusDot(status) {
+    return status ? `<span class="status-dot category-${status.category} status-color-${status.color}" aria-hidden="true"></span>`
+        : '<span class="status-dot" aria-hidden="true"></span>';
+}
+
+// A click on a task's status completes or reopens it; a right click picks any status (see status-menu.js).
 function itemSymbol(item) {
-    return isTask(item) ? `<span class="status-dot ${item.status}"></span>` :
-        `<span class="${isFolder(item) ? 'folder-symbol' : 'document-symbol'}" title="${itemKinds[item.kind]}">${itemIcon(item)}</span>`;
+    if (!isTask(item)) return `<span class="${isFolder(item) ? 'folder-symbol' : 'document-symbol'}" title="${itemKinds[item.kind]}">${itemIcon(item)}</span>`;
+    const status = statusById(item.statusId);
+    const label = `${status?.name || 'Status'} – Klick: ${isCompleted(item) ? 'wieder öffnen' : 'abschließen'}, Rechtsklick: Status wählen`;
+    return `<button type="button" class="status-toggle" data-action="toggle-done" data-id="${item.id}" title="${escapeHtml(label)}" aria-label="${escapeHtml(`„${item.title}“: ${label}`)}">${statusDot(status)}</button>`;
 }
 
 function documentRefs(task) {
@@ -136,13 +145,13 @@ function groupTasks(tasks, view, definitions) {
     const definition = field.startsWith('field:') ? definitions.find(item => item.id === field.slice(6)) : null;
     const groups = new Map();
     for (const task of tasks) {
-        const raw = field === 'status' && !isTask(task) ? null : field.startsWith('field:') ? task.fields[field.slice(6)] :
+        const raw = field === 'status' ? (isTask(task) ? task.statusId : null) : field.startsWith('field:') ? task.fields[field.slice(6)] :
             field === 'description' ? descriptionText(task.description) : task[field];
         const key = String(raw ?? '').trim();
         if (!groups.has(key)) groups.set(key, { key, label: key ? fieldValue(task, field, definitions) : 'Ohne Wert', tasks: [] });
         groups.get(key).tasks.push(task);
     }
-    const order = field === 'kind' ? Object.keys(itemKinds) : field === 'status' ? Object.keys(statuses) : definition?.type === 'Select' ? definition.options.map(option => option.id) : null;
+    const order = field === 'kind' ? Object.keys(itemKinds) : field === 'status' ? allStatuses().map(status => status.id) : definition?.type === 'Select' ? definition.options.map(option => option.id) : null;
     return [...groups.values()].sort((a, b) => {
         if (!a.key && !b.key) return 0;
         if (!a.key) return 1;
@@ -239,13 +248,14 @@ function inlineFieldInput(task, field) {
     return `<input ${attributes} type="${type}" ${type === 'number' ? 'step="any"' : ''} maxlength="500" placeholder="—" value="${escapeHtml(value)}" title="${escapeHtml(value)}" />`;
 }
 
-function renderKanbanBoard(tasks, view, definitions, groupKey, columnStatuses = Object.keys(statuses)) {
+// One column per status. The heading opens the status menu (status-menu.js); an ungrouped board can add statuses.
+function renderKanbanBoard(tasks, view, definitions, groupKey, columnStatuses = allStatuses()) {
     const groupAttribute = groupKey === null ? '' : ` data-group="${escapeHtml(groupKey)}"`;
-    return `<div class="kanban-board ${columnStatuses.length === 1 ? 'single-status' : ''}">${columnStatuses.map(status => {
-        const label = statuses[status];
-        const columnTasks = tasks.filter(task => task.status === status);
-        return `<section class="kanban-column" data-status="${status}"${groupAttribute}><div class="column-heading"><span class="status-dot ${status}"></span>${label}<span class="column-count">${columnTasks.length}</span></div><div class="column-body">${columnTasks.map(task => `<article class="kanban-card" draggable="true" data-action="open-task" data-id="${task.id}"${groupAttribute}><div class="card-title">${escapeHtml(task.title)}</div>${view.visibleFields.includes('description') && task.description ? `<p class="card-description">${escapeHtml(descriptionText(task.description))}</p>` : ''}<div class="card-meta">${view.visibleFields.filter(key => !['title', 'status', 'description'].includes(key)).map(key => fieldValue(task, key, definitions) ? `<span${key === 'dueDate' && dueState(task) ? ` class="due-${dueState(task)}"` : ''}>${escapeHtml(fieldLabel(key, definitions))}: ${escapeHtml(fieldValue(task, key, definitions))}</span>` : '').join('')}</div>${documentRefs(task)}</article>`).join('')}${groupKey === null || view.groupByField === 'status' ? `<button class="add-column-task" data-action="new-task" data-status="${status}">＋ Aufgabe hinzufügen</button>` : ''}</div></section>`;
-    }).join('')}</div>`;
+    const addStatus = groupKey === null ? '<button type="button" class="add-status-column" data-action="add-status" title="Neuen Status als Spalte hinzufügen" aria-haspopup="dialog">＋ Status</button>' : '';
+    return `<div class="kanban-board ${columnStatuses.length === 1 ? 'single-status' : ''} ${addStatus ? 'with-add-status' : ''}" style="--columns:${columnStatuses.length}">${columnStatuses.map(status => {
+        const columnTasks = tasks.filter(task => task.statusId === status.id);
+        return `<section class="kanban-column" data-status="${status.id}"${groupAttribute}><div class="column-heading"><button type="button" class="column-heading-button" data-action="status-menu" data-status-id="${status.id}" title="Status bearbeiten" aria-haspopup="dialog">${statusDot(status)}<span class="column-name">${escapeHtml(status.name)}</span><span class="column-menu-hint" aria-hidden="true">⋯</span></button><span class="column-count">${columnTasks.length}</span></div><div class="column-body">${columnTasks.map(task => `<article class="kanban-card" draggable="true" data-action="open-task" data-id="${task.id}"${groupAttribute}><div class="card-title">${escapeHtml(task.title)}</div>${view.visibleFields.includes('description') && task.description ? `<p class="card-description">${escapeHtml(descriptionText(task.description))}</p>` : ''}<div class="card-meta">${view.visibleFields.filter(key => !['title', 'status', 'description'].includes(key)).map(key => fieldValue(task, key, definitions) ? `<span${key === 'dueDate' && dueState(task) ? ` class="due-${dueState(task)}"` : ''}>${escapeHtml(fieldLabel(key, definitions))}: ${escapeHtml(fieldValue(task, key, definitions))}</span>` : '').join('')}</div>${documentRefs(task)}</article>`).join('')}${groupKey === null || view.groupByField === 'status' ? `<button class="add-column-task" data-action="new-task" data-status-id="${status.id}">＋ Aufgabe hinzufügen</button>` : ''}</div></section>`;
+    }).join('')}${addStatus}</div>`;
 }
 
 function renderKanban(tasks, view, definitions, collapsed) {
@@ -253,9 +263,9 @@ function renderKanban(tasks, view, definitions, collapsed) {
     if (!groups) return renderKanbanBoard(tasks, view, definitions, null);
     if (view.groupByField === 'status') {
         const byStatus = new Map(groups.map(group => [group.key, group]));
-        groups = Object.entries(statuses).map(([key, label]) => byStatus.get(key) || { key, label, tasks: [] });
+        groups = allStatuses().map(status => byStatus.get(status.id) || { key: status.id, label: status.name, tasks: [] });
     }
-    return `<div class="kanban-groups">${groups.map(group => `<section class="kanban-group">${groupHeading(view, group, collapsed)}${groupIsCollapsed(view, group, collapsed) ? '' : renderKanbanBoard(group.tasks, view, definitions, group.key, view.groupByField === 'status' ? [group.key] : undefined)}</section>`).join('')}</div>`;
+    return `<div class="kanban-groups">${groups.map(group => `<section class="kanban-group">${groupHeading(view, group, collapsed)}${groupIsCollapsed(view, group, collapsed) ? '' : renderKanbanBoard(group.tasks, view, definitions, group.key, view.groupByField === 'status' ? [statusById(group.key)].filter(Boolean) : undefined)}</section>`).join('')}</div>`;
 }
 
 function renderCalendar(tasks, view, definitions, monthValue) {
@@ -306,6 +316,11 @@ function renderCalendar(tasks, view, definitions, monthValue) {
     return `<div class="calendar-wrap"><div class="date-nav"><strong>${new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(first)}</strong><button data-action="calendar-prev" aria-label="Vorheriger Monat">‹</button><button data-action="calendar-next" aria-label="Nächster Monat">›</button></div><div class="calendar-grid"><div class="calendar-weekday-row">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(day => `<div class="weekday">${day}</div>`).join('')}</div>${weeks}</div>${unscheduled.length ? `<div class="unscheduled"><strong>Ohne Datum</strong>${unscheduled.map(task => `<button data-action="open-task" data-id="${task.id}">${escapeHtml(task.title)}</button>`).join('')}</div>` : ''}</div>`;
 }
 
+const timelineStatusClasses = task => {
+    const status = statusById(task.statusId);
+    return status ? `category-${status.category} status-color-${status.color}` : '';
+};
+
 function renderTimeline(tasks, view, definitions, anchor, interval, collapsed) {
     const range = getTimelineRange(anchor, interval);
     const start = new Date(`${range.start}T00:00:00Z`);
@@ -319,7 +334,7 @@ function renderTimeline(tasks, view, definitions, anchor, interval, collapsed) {
             const left = Math.max(0, (taskStart - start) / 86400000);
             const right = Math.min(range.days, (taskEnd - start) / 86400000 + 1);
             const tooltip = escapeHtml(`${task.title} · ${formatDate(task.startDate || task.dueDate)} – ${formatDate(task.dueDate || task.startDate)}`);
-            bar = right > left ? `<div class="timeline-bar ${task.status} ${dueState(task) ? `due-${dueState(task)}` : ''}" style="left:${left / range.days * 100}%;width:${Math.max((right - left) / range.days * 100, 1.5)}%" data-id="${task.id}" title="${tooltip}">${taskStart >= start ? '<button type="button" class="timeline-resize start" data-edge="start" title="Startdatum ändern" aria-label="Startdatum ändern"></button>' : ''}<button type="button" class="timeline-body" data-action="open-task" data-id="${task.id}">${escapeHtml(task.title)}</button>${taskEnd < end ? '<button type="button" class="timeline-resize end" data-edge="end" title="Enddatum ändern" aria-label="Enddatum ändern"></button>' : ''}</div>` : '';
+            bar = right > left ? `<div class="timeline-bar ${timelineStatusClasses(task)} ${dueState(task) ? `due-${dueState(task)}` : ''}" style="left:${left / range.days * 100}%;width:${Math.max((right - left) / range.days * 100, 1.5)}%" data-id="${task.id}" title="${tooltip}">${taskStart >= start ? '<button type="button" class="timeline-resize start" data-edge="start" title="Startdatum ändern" aria-label="Startdatum ändern"></button>' : ''}<button type="button" class="timeline-body" data-action="open-task" data-id="${task.id}">${escapeHtml(task.title)}</button>${taskEnd < end ? '<button type="button" class="timeline-resize end" data-edge="end" title="Enddatum ändern" aria-label="Enddatum ändern"></button>' : ''}</div>` : '';
         }
         const extras = view.visibleFields.filter(key => key !== 'title').map(key => fieldValue(task, key, definitions)).filter(Boolean);
         if (task.relatedDocuments.length) extras.unshift(`📄 ${task.relatedDocuments.length} ${task.relatedDocuments.length === 1 ? 'Dokument' : 'Dokumente'}`);

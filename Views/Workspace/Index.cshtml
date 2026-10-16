@@ -4,7 +4,7 @@
 }
 @Html.AntiForgeryToken()
 @section TopActions {
-    <button class="quiet-button" id="field-manager-button" title="Eigene Felder verwalten"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Eigene Felder</span></button>
+    <button class="quiet-button" id="field-manager-button" title="Status und eigene Felder verwalten"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Eigene Felder</span></button>
 }
 @section Scripts {
     <script src="~/lib/suneditor/suneditor.min.js" asp-append-version="true"></script>
@@ -46,7 +46,7 @@
             <textarea id="task-title" class="title-input" rows="2" maxlength="300" required placeholder="Was steht an?"></textarea>
             <p id="item-prefill-note" class="prefill-note" hidden></p>
             <div class="field-grid">
-                <label id="item-status-field"><span>Status</span><select id="task-status"><option value="Todo">Offen</option><option value="Doing">In Arbeit</option><option value="Done">Erledigt</option></select></label>
+                <label id="item-status-field"><span>Status</span><select id="task-status"></select></label>
                 <label><span>Übergeordneter Eintrag</span><select id="task-parent"><option value="">Keine</option></select></label>
                 <label id="item-start-field"><span>Startdatum</span><input id="task-start" type="date" /></label>
                 <label id="item-due-field"><span>Fällig am</span><input id="task-due" type="date" /></label>
@@ -69,7 +69,7 @@
             <label class="form-label" for="config-kind">Darstellung</label><select id="config-kind"><option value="Tree">Baum / Tabelle</option><option value="Kanban">Kanban</option><option value="Calendar">Kalender</option><option value="Timeline">Zeitachse</option></select>
             <div id="grouping-settings"><label class="form-label" for="config-group-by">Gruppieren nach</label><select id="config-group-by"><option value="">Keine Gruppierung</option></select><p class="helper-text">Einträge mit gleichem Feldwert erscheinen in einer Gruppe.</p></div>
             <div id="sort-settings"><label class="form-label" for="config-sort-by">Sortieren nach</label><div class="sort-controls"><select id="config-sort-by"><option value="">Manuelle Reihenfolge</option></select><select id="config-sort-direction" aria-label="Sortierrichtung"><option value="asc">Aufsteigend</option><option value="desc">Absteigend</option></select></div><p class="helper-text">Leere Werte stehen immer am Ende. Im Baum wird innerhalb jeder Ebene sortiert.</p></div>
-            <label class="checkbox-setting"><input type="checkbox" id="config-hide-completed" /><span>Erledigte Aufgaben ausblenden</span></label>
+            <label class="checkbox-setting"><input type="checkbox" id="config-hide-completed" /><span>Abgeschlossene Aufgaben ausblenden</span></label>
             <div class="section-heading"><h3>Angezeigte Felder</h3></div><p class="helper-text">Wähle die Informationen, die in dieser Ansicht sichtbar sind.</p><div id="visible-fields" class="checkbox-grid"></div>
             <div class="section-heading"><h3>Filter</h3><button type="button" id="add-filter-button" class="text-button">＋ Filter hinzufügen</button></div><p class="helper-text">Alle Filter müssen zutreffen.</p><div id="filter-rows" class="filter-rows"></div>
         </div>

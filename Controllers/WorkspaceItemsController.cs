@@ -36,6 +36,13 @@ public sealed class WorkspaceItemsController(WorkspaceItemService items) : Contr
         return NoContent();
     }
 
+    [HttpPatch("{id:guid}/status")]
+    public async Task<IActionResult> UpdateStatus(Guid id, ItemStatusRequest request, CancellationToken cancellationToken)
+    {
+        await items.UpdateStatusAsync(id, request.StatusId, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPatch("{id:guid}/fields/{fieldId:guid}")]
     public async Task<IActionResult> UpdateField(Guid id, Guid fieldId, ItemFieldValueRequest request, CancellationToken cancellationToken)
     {

@@ -1,14 +1,17 @@
 import { api } from './api.js?v=problem-details';
-import { escapeHtml, fieldLabel, kinds, renderView, statuses, descriptionText, customFieldText } from './render.js?v=quick-add';
+import { escapeHtml, fieldLabel, kinds, renderView, descriptionText, customFieldText, statusDot } from './render.js?v=statuses';
 import { getDescription, setDescription } from './description-editor.js';
 import { initializeTaskDisplay } from './task-display.js';
 import { initializeTreeDrag } from './tree-drag.js?v=folders';
 import { initializeTimelineDrag } from './timeline-drag.js';
 import { timelineIntervals, shiftTimelineDate } from './timeline-range.js';
 import { isDocument, isFolder, isTask, canContain, itemIcon, itemKinds } from './item-relations.js?v=folders';
-import { initializeItemLinks } from './item-links.js?v=problem-details';
-import { initializeOptionEditors, readOptions, renderOptionEditor } from './option-editor.js?v=option-ids';
-import { prefilledItem, prefilledKeys, viewPrefill } from './view-prefill.js';
+import { initializeItemLinks } from './item-links.js?v=statuses';
+import { initializeOptionEditors, readOptions, renderOptionEditor } from './option-editor.js?v=statuses';
+import { prefilledItem, prefilledKeys, viewPrefill } from './view-prefill.js?v=statuses';
+import { allStatuses, categoryFilterLabels, categoryFilterPrefix, defaultStatusId, firstStatusId, isCompleted, saveStatusList, setStatuses, statusById, statusCategories, statusName } from './statuses.js';
+import { initializeStatusMenu, statusOptions } from './status-menu.js';
+import { initializeStatusEditors, prepareStatusEditor, readStatusEditor, renderStatusEditor } from './status-editor.js';
 
 const $ = id => document.getElementById(id);
 initializeTaskDisplay($('task-drawer'), $('task-display-toggle'));
@@ -24,7 +27,7 @@ const ui = {
     timelineInterval: Object.hasOwn(timelineIntervals, savedTimelineInterval) ? savedTimelineInterval : 'Month',
     editingViewId: null, search: ''
 };
-let workspace = { items: [], matchingItemIds: [], customFields: [], views: [], links: [] };
+let workspace = { items: [], matchingItemIds: [], statuses: [], customFields: [], views: [], links: [] };
 let dragTaskId = null;
 let dragGroupKey = null;
 let editingFieldId = null;
@@ -33,6 +36,7 @@ let toastTimer;
 const currentView = () => workspace.views.find(view => view.id === ui.viewId && view.kind === ui.kind) || null;
 const taskById = id => workspace.items.find(task => task.id === id);
 const itemLinks = initializeItemLinks(() => workspace, () => loadWorkspace(), notify);
+const statusMenu = initializeStatusMenu({ items: () => workspace.items, reload: () => loadWorkspace(), notify, manageStatuses: () => openFieldDialog({ editStatuses: true }) });
 initializeTreeDrag($('view-content'), () => workspace.items, async (id, move) => {
     try {
         await api(`/api/items/${id}/move`, { method: 'POST', body: JSON.stringify(move) });
@@ -65,6 +69,7 @@ async function loadWorkspace(preferredViewId = ui.viewId, preferredKind = ui.kin
         localStorage.setItem('arbor-view', ui.viewId);
         localStorage.setItem(`arbor-view-${ui.kind}`, ui.viewId);
     } else localStorage.removeItem('arbor-view');
+    setStatuses(workspace.statuses);
     workspace.items.forEach(task => {
         if (!ui.seenTasks.has(task.id)) {
             ui.expanded.add(task.id);
@@ -88,7 +93,7 @@ function render() {
     $('view-title').textContent = view?.name || 'Noch keine Konfiguration';
     $('view-description').textContent = kinds[ui.kind]?.description || '';
     $('filter-summary').textContent = [view?.filters.length ? `${view.filters.length} Filter aktiv` : '',
-        view?.hideCompleted ? 'Erledigte ausgeblendet' : ''].filter(Boolean).join(' · ');
+        view?.hideCompleted ? 'Abgeschlossene ausgeblendet' : ''].filter(Boolean).join(' · ');
     $('edit-view-button').hidden = !view;
     const query = ui.search.trim().toLocaleLowerCase('de');
     const terms = query.split(/\s+/).filter(Boolean);
@@ -194,7 +199,7 @@ function openTask(id = null, options = {}) {
     $('task-drawer').classList.toggle('document-editor', document);
     $('task-drawer').classList.toggle('folder-editor', folder);
     $('task-title').value = task?.title || prefill?.title || '';
-    $('task-status').value = task?.status || options.status || prefill?.status || 'Todo';
+    $('task-status').innerHTML = statusOptions(allStatuses(), task?.statusId || options.statusId || prefill?.statusId || defaultStatusId());
     $('task-start').value = task?.startDate || prefill?.startDate || '';
     $('task-due').value = task?.dueDate || prefill?.dueDate || '';
     $('item-prefill-note').textContent = prefill ? options.prefillNote : '';
@@ -208,7 +213,7 @@ function openTask(id = null, options = {}) {
     const children = task ? workspace.items.filter(item => item.parentId === task.id) : [];
     $('task-children-section').hidden = !task;
     $('add-child-folder-button').hidden = !folder;
-    $('task-children').innerHTML = children.map(child => `<button type="button" class="child-link" data-action="open-task" data-id="${child.id}">${itemIcon(child)} ${escapeHtml(child.title)}${isTask(child) ? `<span class="related-status">${escapeHtml(statuses[child.status])}</span>` : ''}</button>`).join('') || '<p class="helper-text">Noch keine untergeordneten Einträge.</p>';
+    $('task-children').innerHTML = children.map(child => `<button type="button" class="child-link" data-action="open-task" data-id="${child.id}">${itemIcon(child)} ${escapeHtml(child.title)}${isTask(child) ? `<span class="related-status">${escapeHtml(statusName(child.statusId))}</span>` : ''}</button>`).join('') || '<p class="helper-text">Noch keine untergeordneten Einträge.</p>';
     itemLinks.render(task?.id || null);
     ui.selectedTaskId = task?.id || null;
     $('drawer-backdrop').hidden = false;
@@ -237,7 +242,7 @@ async function saveTask(event) {
     const payload = {
         kind,
         title: $('task-title').value.trim(), description: getDescription(),
-        parentId: $('task-parent').value || null, status: kind === 'Task' ? $('task-status').value : 'Todo',
+        parentId: $('task-parent').value || null, statusId: kind === 'Task' ? $('task-status').value || null : null,
         startDate: kind === 'Task' ? $('task-start').value || null : null,
         dueDate: kind === 'Task' ? $('task-due').value || null : null, fields
     };
@@ -284,7 +289,14 @@ const relativeDates = [['@today', 'Heute'], ['@today+1', 'Morgen'], ['@today-1',
 
 function filterValueControl(fieldKey, value = '') {
     const field = workspace.customFields.find(item => fieldKey === `field:${item.id}`);
-    const choices = fieldKey === 'kind' ? Object.entries(itemKinds) : fieldKey === 'status' ? Object.entries(statuses) :
+    // A status filter can name a whole category, so it keeps working when statuses are added later.
+    if (fieldKey === 'status') {
+        const categories = Object.entries(categoryFilterLabels).map(([category, label]) => [`${categoryFilterPrefix}${category}`, label]);
+        const option = ([key, label]) => `<option value="${escapeHtml(key)}" ${value === key ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+        return `<select class="filter-value" aria-label="Filterwert"><option value="">Wert wählen</option><optgroup label="Kategorie">${categories.map(option).join('')}</optgroup>${Object.entries(statusCategories).map(([category, label]) =>
+            `<optgroup label="Status: ${label}">${allStatuses().filter(status => status.category === category).map(status => option([status.id, status.name])).join('')}</optgroup>`).join('')}</select>`;
+    }
+    const choices = fieldKey === 'kind' ? Object.entries(itemKinds) :
         field?.type === 'Select' ? field.options.map(option => [option.id, option.name]) :
         field?.type === 'Boolean' ? [['true', 'Ja'], ['false', 'Nein']] : null;
     if (choices) return `<select class="filter-value" aria-label="Filterwert"><option value="">Wert wählen</option>${choices.map(([key, label]) => `<option value="${escapeHtml(key)}" ${value === key ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select>`;
@@ -373,15 +385,27 @@ async function deleteView() {
     catch (error) { showError('view-form-error', error); }
 }
 
+// The built-in status field comes first; its statuses are edited like the options of a select field.
+function statusFieldItem() {
+    const editing = editingFieldId === 'status';
+    const usage = new Map();
+    workspace.items.forEach(item => item.statusId && usage.set(item.statusId, (usage.get(item.statusId) || 0) + 1));
+    const chips = editing ? '' : `<div class="field-option-chips">${allStatuses().map(status => `<span class="field-option-chip status-chip">${statusDot(status)}${escapeHtml(status.name)}</span>`).join('')}</div>`;
+    const editor = editing ? `<div class="field-options-editor">${renderStatusEditor(allStatuses(), usage)}<div class="inline-submit"><button type="button" class="secondary-button" data-action="cancel-field-options">Abbrechen</button><button type="button" class="primary-button" data-action="save-statuses">Status speichern</button></div></div>` : '';
+    return `<div class="field-list-item status-field-item ${editing ? 'editing' : ''}"><div class="field-list-row"><strong>Status</strong><span>Standardfeld · ${allStatuses().length} Status</span>${editing ? '' : '<button type="button" class="icon-button" data-action="edit-statuses" title="Status bearbeiten" aria-label="Status bearbeiten">✎</button>'}</div>${chips}${editor}</div>`;
+}
+
 function renderFieldList() {
-    $('field-list').innerHTML = workspace.customFields.map(field => {
+    $('field-list').innerHTML = statusFieldItem() + workspace.customFields.map(field => {
         const select = field.type === 'Select';
         const editing = select && field.id === editingFieldId;
         const edit = select && !editing ? `<button type="button" class="icon-button" data-action="edit-field-options" data-id="${field.id}" title="Optionen bearbeiten" aria-label="Optionen von ${escapeHtml(field.name)} bearbeiten">✎</button>` : '';
         const chips = select && !editing ? `<div class="field-option-chips">${field.options.map(option => `<span class="field-option-chip">${escapeHtml(option.name)}</span>`).join('')}</div>` : '';
         const editor = editing ? `<div class="field-options-editor" data-field-id="${field.id}">${renderOptionEditor(field.options)}<div class="inline-submit"><button type="button" class="secondary-button" data-action="cancel-field-options">Abbrechen</button><button type="button" class="primary-button" data-action="save-field-options" data-id="${field.id}">Optionen speichern</button></div></div>` : '';
         return `<div class="field-list-item ${editing ? 'editing' : ''}"><div class="field-list-row"><strong>${escapeHtml(field.name)}</strong><span>${{ Text: 'Text', Select: 'Auswahl', Number: 'Zahl', Date: 'Datum', Boolean: 'Ja / Nein' }[field.type]}</span>${edit}<button type="button" class="icon-button" data-action="delete-field" data-id="${field.id}" title="Feld löschen" aria-label="${escapeHtml(field.name)} löschen">×</button></div>${chips}${editor}</div>`;
-    }).join('') || '<p class="helper-text">Noch keine eigenen Felder.</p>';
+    }).join('');
+    const statusEditor = $('field-list').querySelector('.status-editor');
+    if (statusEditor) prepareStatusEditor(statusEditor);
 }
 
 function resetFieldForm() {
@@ -390,12 +414,38 @@ function resetFieldForm() {
     $('field-options-wrap').hidden = true;
 }
 
-function openFieldDialog() {
+function openFieldDialog({ editStatuses = false } = {}) {
     $('field-form-error').textContent = '';
-    editingFieldId = null;
+    editingFieldId = editStatuses ? 'status' : null;
     renderFieldList();
     if (!$('field-options').firstChild) resetFieldForm();
-    $('field-dialog').showModal();
+    if (!$('field-dialog').open) $('field-dialog').showModal();
+    if (editStatuses) $('field-list').querySelector('.status-name')?.focus();
+}
+
+async function saveStatuses() {
+    const editor = $('field-list').querySelector('.status-editor');
+    if (!editor) return;
+    const { statuses, replacements } = readStatusEditor(editor);
+    // The open drawer keeps its choice, or follows its status to where the tasks move.
+    const drawerStatus = $('task-status').value;
+    try {
+        await saveStatusList(statuses, replacements);
+        editingFieldId = null;
+        await loadWorkspace();
+        renderFieldList();
+        if (!$('task-drawer').hidden && $('item-kind').value === 'Task')
+            $('task-status').innerHTML = statusOptions(allStatuses(), statusById(drawerStatus) ? drawerStatus : statusById(replacements[drawerStatus])?.id || defaultStatusId());
+        notify('Status gespeichert.');
+    } catch (error) { editor.querySelector('.option-error').textContent = error.message; }
+}
+
+// A click on a task's status dot completes it, or reopens a completed one.
+async function toggleDone(id) {
+    const task = taskById(id);
+    if (!task) return;
+    try { await statusMenu.setTaskStatus(id, isCompleted(task) ? defaultStatusId() : firstStatusId('Done')); }
+    catch (error) { notify(error.message); }
 }
 
 async function saveField(event) {
@@ -461,7 +511,12 @@ document.addEventListener('click', async event => {
         case 'select-view': await loadWorkspace(action.dataset.id, ui.kind); break;
         case 'edit-view': openViewDialog(action.dataset.id); break;
         case 'new-view': openViewDialog(); break;
-        case 'new-task': openTask(null, { status: action.dataset.status, parentId: action.dataset.parentId }); break;
+        case 'new-task': openTask(null, { statusId: action.dataset.statusId, parentId: action.dataset.parentId }); break;
+        case 'toggle-done': event.stopPropagation(); await toggleDone(action.dataset.id); break;
+        case 'status-menu': statusMenu.openColumnMenu(action); break;
+        case 'add-status': statusMenu.openAddStatus(action); break;
+        case 'edit-statuses': editingFieldId = 'status'; renderFieldList(); $('field-list').querySelector('.status-name')?.focus(); break;
+        case 'save-statuses': await saveStatuses(); break;
         case 'new-document': openTask(null, { kind: 'Document', parentId: action.dataset.parentId }); break;
         case 'new-folder': openTask(null, { kind: 'Folder', parentId: action.dataset.parentId }); break;
         case 'quick-add': openPrefilledItem(action.dataset.kind); break;
@@ -517,11 +572,17 @@ document.addEventListener('drop', async event => {
         notify('Aufgaben können nur innerhalb ihrer Gruppe verschoben werden.'); return;
     }
     dragTaskId = null; dragGroupKey = null;
-    if (!task || task.status === column.dataset.status) return;
-    try {
-        await api(`/api/items/${task.id}`, { method: 'PUT', body: JSON.stringify({ ...task, status: column.dataset.status }) });
-        await loadWorkspace(); notify('Status geändert.');
-    } catch (error) { notify(error.message); }
+    if (!task || task.statusId === column.dataset.status) return;
+    try { await statusMenu.setTaskStatus(task.id, column.dataset.status); }
+    catch (error) { notify(error.message); }
+});
+
+// A right click on a task's status dot picks any status.
+document.addEventListener('contextmenu', event => {
+    const toggle = event.target.closest('.status-toggle');
+    if (!toggle) return;
+    event.preventDefault();
+    statusMenu.openPicker(toggle, toggle.dataset.id);
 });
 
 $('new-task-button').addEventListener('click', () => openTask());
@@ -536,8 +597,8 @@ $('delete-task-button').addEventListener('click', deleteTask);
 $('add-child-button').addEventListener('click', () => openTask(null, { parentId: $('task-id').value }));
 $('add-child-document-button').addEventListener('click', () => openTask(null, { kind: 'Document', parentId: $('task-id').value }));
 $('add-child-folder-button').addEventListener('click', () => openTask(null, { kind: 'Folder', parentId: $('task-id').value }));
-$('field-manager-button').addEventListener('click', openFieldDialog);
-$('drawer-add-field').addEventListener('click', openFieldDialog);
+$('field-manager-button').addEventListener('click', () => openFieldDialog());
+$('drawer-add-field').addEventListener('click', () => openFieldDialog());
 $('add-view-button').addEventListener('click', () => openViewDialog());
 $('edit-view-button').addEventListener('click', () => openViewDialog(currentView()?.id));
 $('add-filter-button').addEventListener('click', () => addFilterRow());
@@ -545,6 +606,7 @@ $('view-form').addEventListener('submit', saveView);
 $('delete-view-button').addEventListener('click', deleteView);
 $('field-form').addEventListener('submit', saveField);
 initializeOptionEditors($('field-dialog'));
+initializeStatusEditors($('field-dialog'));
 $('field-type').addEventListener('change', () => $('field-options-wrap').hidden = $('field-type').value !== 'Select');
 document.addEventListener('change', event => {
     if (event.target.matches('[data-inline-field]')) saveInlineField(event.target);

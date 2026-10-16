@@ -1,13 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 using QuireClone.Domain;
 using QuireClone.Services;
-using TaskStatus = QuireClone.Domain.TaskStatus;
 
 namespace QuireClone.Contracts;
 
 public sealed record WorkspaceItemDto(Guid Id, WorkspaceItemKind Kind, string Title, string Description, Guid? ParentId,
-    TaskStatus Status, DateOnly? StartDate, DateOnly? DueDate, int SortOrder,
+    Guid? StatusId, DateOnly? StartDate, DateOnly? DueDate, int SortOrder,
     DateTimeOffset UpdatedAt, Dictionary<Guid, string> Fields);
+
+public sealed record TaskStatusDto(Guid Id, string Name, StatusCategory Category, string Color, int SortOrder);
 
 public sealed record CustomFieldDto(Guid Id, string Name, CustomFieldType Type,
     List<SelectOption> Options, int SortOrder);
@@ -19,7 +20,8 @@ public sealed record ViewConfigurationDto(Guid Id, string Name, ViewKind Kind,
 public sealed record ItemLinkDto(Guid TaskId, Guid DocumentId);
 
 public sealed record WorkspaceDto(List<WorkspaceItemDto> Items, List<Guid> MatchingItemIds,
-    List<CustomFieldDto> CustomFields, List<ViewConfigurationDto> Views, List<ItemLinkDto> Links);
+    List<TaskStatusDto> Statuses, List<CustomFieldDto> CustomFields, List<ViewConfigurationDto> Views,
+    List<ItemLinkDto> Links);
 
 public sealed class ItemSaveRequest
 {
@@ -28,7 +30,7 @@ public sealed class ItemSaveRequest
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
     public Guid? ParentId { get; set; }
-    public TaskStatus Status { get; set; }
+    public Guid? StatusId { get; set; }
     public DateOnly? StartDate { get; set; }
     public DateOnly? DueDate { get; set; }
     public Dictionary<Guid, string?> Fields { get; set; } = [];
@@ -43,6 +45,28 @@ public sealed class TaskDatesRequest
 public sealed class ItemFieldValueRequest
 {
     public string? Value { get; set; }
+}
+
+public sealed class ItemStatusRequest
+{
+    public Guid StatusId { get; set; }
+}
+
+public sealed class TaskStatusChange
+{
+    // The id of an existing status, or null for a newly added status.
+    public Guid? Id { get; set; }
+    public string Name { get; set; } = "";
+    public StatusCategory Category { get; set; }
+    public string Color { get; set; } = StatusColors.Default;
+}
+
+public sealed class TaskStatusesRequest
+{
+    // The complete list in display order; statuses left out are removed.
+    public List<TaskStatusChange> Statuses { get; set; } = [];
+    // Removed status → existing status that takes over its tasks. Without an entry the first status of the same category is used.
+    public Dictionary<Guid, Guid> Replacements { get; set; } = [];
 }
 
 public sealed class TaskMoveRequest

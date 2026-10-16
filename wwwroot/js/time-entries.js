@@ -1,5 +1,5 @@
 import { api } from './api.js?v=problem-details';
-import { escapeHtml } from './render.js?v=quick-add';
+import { escapeHtml } from './render.js?v=statuses';
 import {
     addDays, apiTime, dayMinutes, entryMinutes, formatDuration, formatTime, localToday, mondayOf, snap, snapMinutes,
     toMinutes, visibleRange, layoutDay, weekLabel, weekdayIndex, workdayEnd, workdayStart

@@ -7,6 +7,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 {
     public DbSet<WorkspaceItem> Items => Set<WorkspaceItem>();
     public DbSet<ItemLink> ItemLinks => Set<ItemLink>();
+    public DbSet<TaskStatusDefinition> Statuses => Set<TaskStatusDefinition>();
     public DbSet<CustomFieldDefinition> CustomFields => Set<CustomFieldDefinition>();
     public DbSet<ItemFieldValue> ItemFieldValues => Set<ItemFieldValue>();
     public DbSet<ViewConfiguration> ViewConfigurations => Set<ViewConfiguration>();
@@ -22,12 +23,22 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(x => x.ParentId).HasColumnName("ParentTaskId");
             entity.Property(x => x.Title).HasMaxLength(300).IsRequired();
             entity.Property(x => x.Description).HasColumnType("text");
-            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            // A status in use can't be deleted; StatusService moves its tasks to another status first.
+            entity.HasOne(x => x.Status).WithMany().HasForeignKey(x => x.StatusId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.ParentItem).WithMany(x => x.Children)
                 .HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_Tasks_Tasks_ParentTaskId");
             entity.HasIndex(x => new { x.ParentId, x.SortOrder }).HasDatabaseName("IX_Tasks_ParentTaskId_SortOrder");
             entity.HasIndex(x => x.DueDate);
+        });
+
+        modelBuilder.Entity<TaskStatusDefinition>(entity =>
+        {
+            entity.ToTable("TaskStatuses");
+            entity.Property(x => x.Name).HasMaxLength(50).IsRequired();
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.Property(x => x.Category).HasConversion<string>().HasMaxLength(16);
+            entity.Property(x => x.Color).HasMaxLength(16).IsRequired();
         });
 
         modelBuilder.Entity<CustomFieldDefinition>(entity =>

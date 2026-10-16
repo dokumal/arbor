@@ -6,7 +6,7 @@ using QuireClone.Domain;
 
 namespace QuireClone.Services;
 
-public sealed class WorkspaceItemService(AppDbContext db)
+public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses)
 {
     public async Task<WorkspaceItem> SaveAsync(Guid? id, ItemSaveRequest request, CancellationToken cancellationToken)
     {
@@ -15,11 +15,11 @@ public sealed class WorkspaceItemService(AppDbContext db)
         if (title.Length is 0 or > 300) throw new DomainValidationException("Der Titel muss 1 bis 300 Zeichen enthalten.");
         if (request.StartDate > request.DueDate)
             throw new DomainValidationException("Das Startdatum darf nicht nach dem Fälligkeitsdatum liegen.");
-        if (!Enum.IsDefined(request.Status))
-            throw new DomainValidationException("Ungültiger Status.");
         if (!ItemKindRules.HasSchedule(request.Kind) &&
-            (request.StartDate is not null || request.DueDate is not null || request.Status != Domain.TaskStatus.Todo))
+            (request.StartDate is not null || request.DueDate is not null || request.StatusId is not null))
             throw new DomainValidationException("Nur Aufgaben haben Termine und einen Status.");
+        var statusId = ItemKindRules.HasSchedule(request.Kind)
+            ? await ValidStatusIdAsync(request.StatusId, cancellationToken) : (Guid?)null;
         if (!ItemKindRules.HasCustomFields(request.Kind) && request.Fields.Count > 0)
             throw new DomainValidationException("Ordner haben keine eigenen Felder.");
 
@@ -54,7 +54,7 @@ public sealed class WorkspaceItemService(AppDbContext db)
         item.Title = title;
         item.Description = request.Description.Trim();
         item.ParentId = request.ParentId;
-        item.Status = request.Status;
+        item.StatusId = statusId;
         item.StartDate = request.StartDate;
         item.DueDate = request.DueDate;
         item.UpdatedAt = DateTimeOffset.UtcNow;
@@ -89,6 +89,16 @@ public sealed class WorkspaceItemService(AppDbContext db)
             throw new DomainValidationException("Nur Aufgaben haben einen Aufgabenzeitraum.");
         item.StartDate = request.StartDate;
         item.DueDate = request.DueDate;
+        item.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateStatusAsync(Guid id, Guid statusId, CancellationToken cancellationToken)
+    {
+        var item = await FindAsync(id, cancellationToken);
+        if (!ItemKindRules.HasSchedule(item.Kind))
+            throw new DomainValidationException("Nur Aufgaben haben einen Status.");
+        item.StatusId = await ValidStatusIdAsync(statusId, cancellationToken);
         item.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -152,6 +162,15 @@ public sealed class WorkspaceItemService(AppDbContext db)
 
     private async Task<WorkspaceItem> FindAsync(Guid id, CancellationToken cancellationToken) =>
         await db.Items.FindAsync([id], cancellationToken) ?? throw new EntityNotFoundException("Eintrag nicht gefunden.");
+
+    // A task without a status gets the default one.
+    private async Task<Guid> ValidStatusIdAsync(Guid? statusId, CancellationToken cancellationToken)
+    {
+        if (statusId is null) return await statuses.DefaultIdAsync(cancellationToken);
+        if (!await db.Statuses.AnyAsync(x => x.Id == statusId, cancellationToken))
+            throw new DomainValidationException("Der Status existiert nicht mehr. Bitte lade die Seite neu.");
+        return statusId.Value;
+    }
 
     private async Task<int> NextSortOrderAsync(Guid? parentId, CancellationToken cancellationToken) =>
         (await db.Items.Where(x => x.ParentId == parentId).MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1;
