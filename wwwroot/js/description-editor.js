@@ -1,7 +1,14 @@
-import { escapeHtml } from './render.js';
+import { Editor, Image, Placeholder, StarterKit, TableKit } from '../lib/tiptap/tiptap.js';
+import { api } from './api.js?v=problem-details';
+import { escapeHtml } from './render.js?v=statuses';
+import { SlashCommands } from './slash-commands.js';
+import { attachTableToolbar } from './table-toolbar.js';
 
+const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const maxImageBytes = 5 * 1024 * 1024;
 let editor;
-const input = () => document.getElementById('task-description');
+const host = () => document.getElementById('task-description');
+const errorLine = () => document.getElementById('task-description-error');
 
 function editableHtml(value) {
     if (!value) return '';
@@ -10,40 +17,68 @@ function editableHtml(value) {
     return `<p>${escapeHtml(value).replace(/\r?\n/g, '<br>')}</p>`;
 }
 
-export function setDescription(value) {
-    const html = editableHtml(value);
-    if (!editor && window.SUNEDITOR) {
-        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        editor = window.SUNEDITOR.create(input(), {
-            plugins: {
-                blockStyle: window.SUNEDITOR.plugins.blockStyle,
-                list: window.SUNEDITOR.plugins.list,
-                table: window.SUNEDITOR.plugins.table,
-                image: window.SUNEDITOR.plugins.image
-            },
-            buttonList: [
-                ['undo', 'redo'],
-                ['bold', 'italic', 'underline'],
-                ['blockStyle', 'list', 'table', 'image']
-            ],
-            value: html,
-            statusbar: false,
-            minHeight: '190px',
-            placeholder: 'Details, Notizen und nächste Schritte …',
-            image: {
-                uploadUrl: '/api/task-images',
-                uploadHeaders: token ? { RequestVerificationToken: token } : {},
-                uploadSingleSizeLimit: 5 * 1024 * 1024,
-                acceptedFormats: 'image/png,image/jpeg,image/gif,image/webp',
-                createUrlInput: false
-            }
-        });
-        return;
+async function uploadImages(files, position) {
+    errorLine().textContent = '';
+    for (const file of files) {
+        try {
+            // The server enforces the same limit, but larger requests are cut off before they reach it.
+            if (file.size > maxImageBytes) throw new Error(`„${file.name}“ ist größer als 5 MB.`);
+            const body = new FormData();
+            body.append('image', file);
+            const { url } = await api('/api/task-images', { method: 'POST', body });
+            if (!editor || editor.isDestroyed) return;
+            const chain = editor.chain().focus();
+            if (position != null) chain.setTextSelection(Math.min(position, editor.state.doc.content.size));
+            chain.setImage({ src: url, alt: file.name }).run();
+            position = null;
+        } catch (error) { errorLine().textContent = error.message; }
     }
-    if (editor) editor.$.html.set(html);
-    else input().value = value || '';
+}
+
+function pickImage() {
+    const picker = document.createElement('input');
+    picker.type = 'file';
+    picker.accept = imageTypes.join(',');
+    picker.multiple = true;
+    picker.addEventListener('change', () => uploadImages([...picker.files]));
+    picker.click();
+}
+
+const imageFiles = list => [...(list || [])].filter(file => imageTypes.includes(file.type));
+
+// A fresh editor per opened entry, so undo never reaches back into the previously opened one.
+export function setDescription(value) {
+    editor?.destroy();
+    errorLine().textContent = '';
+    editor = new Editor({
+        element: host(),
+        content: editableHtml(value),
+        extensions: [
+            StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false } }),
+            Image,
+            TableKit.configure({ table: { resizable: true } }),
+            Placeholder.configure({ placeholder: 'Details, Notizen und nächste Schritte … Tippe „/“ für Befehle.' }),
+            SlashCommands(pickImage)
+        ],
+        editorProps: {
+            attributes: { class: 'rich-text', 'aria-labelledby': 'item-content-label', 'aria-multiline': 'true', role: 'textbox' },
+            handlePaste(view, event) {
+                const files = imageFiles(event.clipboardData?.files);
+                if (!files.length) return false;
+                uploadImages(files);
+                return true;
+            },
+            handleDrop(view, event, slice, moved) {
+                const files = moved ? [] : imageFiles(event.dataTransfer?.files);
+                if (!files.length) return false;
+                uploadImages(files, view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos);
+                return true;
+            }
+        }
+    });
+    attachTableToolbar(editor, host());
 }
 
 export function getDescription() {
-    return editor ? editor.$.html.get() : input().value;
+    return !editor || editor.isEmpty ? '' : editor.getHTML();
 }

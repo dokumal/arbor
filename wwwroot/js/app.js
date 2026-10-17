@@ -633,6 +633,6 @@ document.addEventListener('keydown', event => {
         event.target.blur();
     }
 });
-document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('task-drawer').hidden && !document.querySelector('dialog[open]')) closeTask(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && !event.defaultPrevented && !$('task-drawer').hidden && !document.querySelector('dialog[open]')) closeTask(); });
 
 loadWorkspace().catch(error => { $('view-content').innerHTML = `<div class="empty-state"><h3>Projekt konnte nicht geladen werden</h3><p>${escapeHtml(error.message)}</p></div>`; });

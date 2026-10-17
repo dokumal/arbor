@@ -1,0 +1,19 @@
+{
+  "name": "arbor-tiptap-bundle",
+  "private": true,
+  "description": "Builds wwwroot/lib/tiptap/tiptap.js, the vendored Tiptap bundle. Only needed to update Tiptap, not to run the app.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "@tiptap/core": "3.32.0",
+    "@tiptap/extension-image": "3.32.0",
+    "@tiptap/extension-table": "3.32.0",
+    "@tiptap/extensions": "3.32.0",
+    "@tiptap/pm": "3.32.0",
+    "@tiptap/starter-kit": "3.32.0",
+    "@tiptap/suggestion": "3.32.0",
+    "esbuild": "0.28.2"
+  }
+}

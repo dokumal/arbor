@@ -46,7 +46,7 @@ Die Datenbank ist eine einzelne Datei (ohne WAL-Nebendateien). Für ein Backup g
 - Statuswechsel im Kanban per Drag & Drop; im Baum schließt ein Klick auf den Statuspunkt eine Aufgabe ab (oder öffnet sie wieder), ein Rechtsklick wählt einen beliebigen Status
 - Aufgabenbalken in der Zeitachse verschieben oder über Griffe am Anfang und Ende verlängern/verkürzen; Tagesraster, Datumsvorschau und automatische Speicherung
 - Zeitachse mit wählbaren Intervallen Woche, Monat und 3 Monate; die Auswahl bleibt im Browser gespeichert
-- SunEditor für Überschriften, Listen, Tabellen und Bilder in Aufgabenbeschreibungen. Bilder lassen sich auch aus der Zwischenablage einfügen und werden im eingestellten Bilder-Ordner gespeichert (Standard: `.local/images`).
+- Tiptap-Editor für Beschreibungen und Dokumentinhalte mit Text, Überschriften, Listen, Tabellen und Bildern. Tippt man `/`, öffnet sich ein Befehlsmenü (Pfeiltasten und Enter, Escape schließt es); innerhalb einer Tabelle bietet es zusätzlich Befehle zum Einfügen und Löschen von Zeilen und Spalten. Dieselben Befehle zeigt eine kleine Leiste über der Tabelle, solange der Cursor darin steht; Tab springt zur nächsten Zelle und hängt in der letzten Zelle eine neue Zeile an. Markdown-Kürzel wie `# `, `- ` oder `1. ` funktionieren ebenfalls. Bilder lassen sich über `/Bild`, aus der Zwischenablage oder per Drag-and-drop einfügen und werden im eingestellten Bilder-Ordner gespeichert (Standard: `.local/images`).
 
 ## Projekte
 
@@ -93,7 +93,7 @@ Für die Baumansicht werden bei Treffern unterhalb eines gefilterten Elternknote
 
 `ItemKindRules` legt fest, was Ordner, Aufgaben und Dokumente haben dürfen und wie sie kombiniert werden. `FieldKeys` bildet die Feldschlüssel der Ansichten (`dueDate`, `field:{id}`). Optionen von Auswahlfeldern haben eine feste ID; gespeicherte Werte und Filter verweisen auf diese ID, sodass Umbenennen nichts weiter ändern muss. Filter, sichtbare Felder und Optionen liegen als JSON in je einer Spalte und werden in `JsonColumn` umgewandelt.
 
-Services melden Regelverstöße mit `DomainValidationException` (400) oder `EntityNotFoundException` (404). `DomainExceptionFilter` macht daraus einheitlich ProblemDetails mit der Meldung in `detail`; der Bild-Upload ergänzt für SunEditor zusätzlich `errorMessage`. Die Razor Seiten liegen unter `Views/Workspace` und `Views/Settings`, die Oberfläche unter `wwwroot/js` und `wwwroot/css`. `StorageSettings` hält die Speicherorte, `StorageLocationService` verschiebt Datenbank und Bilder beim Ändern.
+Services melden Regelverstöße mit `DomainValidationException` (400) oder `EntityNotFoundException` (404). `DomainExceptionFilter` macht daraus einheitlich ProblemDetails mit der Meldung in `detail`. Die Razor Seiten liegen unter `Views/Workspace` und `Views/Settings`, die Oberfläche unter `wwwroot/js` und `wwwroot/css`. `StorageSettings` hält die Speicherorte, `StorageLocationService` verschiebt Datenbank und Bilder beim Ändern.
 
 `Project` ist die oberste Gruppierung. Einträge, Status, eigene Felder und Ansichten tragen eine `ProjectId`; Feldwerte und Verknüpfungen hängen an Einträgen und gehören damit ebenfalls zu deren Projekt. `ProjectService` legt Projekte mit ihren Standard-Status und -Ansichten (`ProjectDefaults`) an und löscht sie samt Inhalt. Die Services prüfen, dass alles, worauf ein Eintrag oder eine Ansicht verweist, aus demselben Projekt stammt. Projekte werden unter `/api/projects` verwaltet; Listen und neue Einträge, Felder, Ansichten und Status liegen unter `/api/projects/{projectId}/…`, bestehende Objekte werden direkt über ihre ID angesprochen. Die Seitenleiste steuert `sidebar.js`, die Projekt-ID der Seite liefert `project.js`.
 
@@ -101,7 +101,7 @@ Services melden Regelverstöße mit `DomainValidationException` (400) oder `Enti
 
 `TimeEntry` ist ein Aufwand; `TimeEntryService` prüft und speichert ihn (Ende nach Beginn, Beschreibung erforderlich, höchstens 500 Zeichen). Die Endpunkte liegen unter `/api/time-entries` (Abfrage mit `?from=…&to=…`), die Seite unter `/aufwaende`. Die Datums- und Layoutberechnung der Wochenansicht steckt in `time-week.js`, die Bedienung in `time-entries.js`.
 
-SunEditor 3.3.3 liegt mitsamt Lizenz lokal unter `wwwroot/lib/suneditor`. Zum Starten ist deshalb weder npm noch eine CDN-Verbindung nötig. Für eingefügte Bilder gilt ein Limit von 5 MB pro Bild; unterstützt werden PNG, JPEG, GIF und WebP.
+Tiptap 3.32.0 liegt als ein einzelnes, fertig gebündeltes ES-Modul mitsamt Lizenzen unter `wwwroot/lib/tiptap`. Zum Starten ist deshalb weder npm noch eine CDN-Verbindung nötig. Nur wer Tiptap aktualisieren oder weitere Erweiterungen aufnehmen will, braucht Node.js: Versionen in `tools/tiptap/package.json` anpassen, Exporte in `tools/tiptap/entry.js` ergänzen und im Ordner `tools/tiptap` `npm install` und `npm run build` ausführen. Der Editor selbst steckt in `description-editor.js`, das Befehlsmenü in `slash-commands.js`. Für eingefügte Bilder gilt ein Limit von 5 MB pro Bild; unterstützt werden PNG, JPEG, GIF und WebP.
 
 Neue Datenbankänderungen lassen sich mit dem lokalen EF Werkzeug erzeugen:
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-"Arbor" (repo/namespace `QuireClone`) is a local, single-user task and document manager: ASP.NET Core MVC on .NET 10, EF Core with SQLite, and a hand-written vanilla JS/CSS frontend (no build step, no npm, no frameworks; SunEditor is vendored under `wwwroot/lib`). There is no authentication. The UI text and the README are in German; code, identifiers and comments are in English. The README documents user-visible behavior in detail, so read it before changing features.
+"Arbor" (repo/namespace `QuireClone`) is a local, single-user task and document manager: ASP.NET Core MVC on .NET 10, EF Core with SQLite, and a hand-written vanilla JS/CSS frontend (no build step, no npm at runtime, no frameworks; Tiptap is vendored under `wwwroot/lib/tiptap` as one prebuilt ES module). There is no authentication. The UI text and the README are in German; code, identifiers and comments are in English. The README documents user-visible behavior in detail, so read it before changing features.
 
 ## Commands
 
@@ -23,7 +23,7 @@ On startup `DatabaseInitializer` applies migrations automatically, switches SQLi
 
 **Layering.** `Domain` holds entities and business rules, `Data` the `AppDbContext` and migrations, `Services` all mutations, filtering and initialization, and `Controllers` are thin: they map routes to services and contain no logic. DTOs live in `Contracts/WorkspaceContracts.cs`.
 
-**Errors.** Services throw `DomainValidationException` (→ 400) or `EntityNotFoundException` (→ 404). The global `DomainExceptionFilter` turns these into ProblemDetails with the message in `detail` (the image upload additionally sets `errorMessage` for SunEditor). The frontend `api()` helper in `wwwroot/js/api.js` surfaces `detail` (or model-validation `errors`) as the thrown error message, so user-facing German messages are written in the services.
+**Errors.** Services throw `DomainValidationException` (→ 400) or `EntityNotFoundException` (→ 404). The global `DomainExceptionFilter` turns these into ProblemDetails with the message in `detail`. The frontend `api()` helper in `wwwroot/js/api.js` surfaces `detail` (or model-validation `errors`) as the thrown error message, so user-facing German messages are written in the services.
 
 **Antiforgery.** `AutoValidateAntiforgeryTokenAttribute` is global. The layout renders the token and `api()` sends it as the `RequestVerificationToken` header; any new fetch must go through `api()` or do the same.
 
@@ -45,4 +45,5 @@ On startup `DatabaseInitializer` applies migrations automatically, switches SQLi
 
 - Each page loads one ES module entry from its Razor view: `app.js` (workspace), `time-entries.js`, `settings.js`, plus `sidebar.js` from `_Layout.cshtml`. Modules import each other with relative paths.
 - Some imports carry a `?v=<tag>` query (e.g. `./api.js?v=problem-details`). The query is part of the module's identity: importing the same file with different specifiers creates separate module instances with separate state, so keep the specifier identical everywhere a module is imported. JS files are served with `Cache-Control: no-cache` (see `Program.cs`), so the tags aren't needed to avoid stale caches.
+- Rich text (descriptions and document content) is a Tiptap editor in `description-editor.js`, recreated per opened entry so undo history never crosses entries; the `/` menu is `slash-commands.js`, the row/column bar shown in tables `table-toolbar.js`. Modules import Tiptap only from `../lib/tiptap/tiptap.js`. That file is generated: to add an extension or update Tiptap, edit `tools/tiptap/entry.js` / `package.json` and run `npm install` and `npm run build` in `tools/tiptap` (the build also regenerates `LICENSE.txt`). Never edit the bundle by hand.
 - `project.js` provides the current page's project id and helpers (`projectPath`, `projectKey` for per-project localStorage keys). Browser-only preferences use `localStorage` keys prefixed with `arbor-`.

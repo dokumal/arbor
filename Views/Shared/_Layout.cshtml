@@ -13,8 +13,6 @@
     <title>@ViewData["Title"] · Arbor</title>
     @* Applied before the first paint, so a pinned sidebar doesn't slide in on every page. *@
     <script>try { if (localStorage.getItem('arbor-sidebar') === 'pinned') document.documentElement.classList.add('sidebar-pinned'); } catch { }</script>
-    <link rel="stylesheet" href="~/lib/suneditor/suneditor.min.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/lib/suneditor/suneditor-contents.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>

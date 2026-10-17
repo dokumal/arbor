@@ -7,7 +7,6 @@
     <button class="quiet-button" id="field-manager-button" title="Status und eigene Felder verwalten"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Eigene Felder</span></button>
 }
 @section Scripts {
-    <script src="~/lib/suneditor/suneditor.min.js" asp-append-version="true"></script>
     <script type="module" src="~/js/app.js" asp-append-version="true"></script>
 }
 <main data-project-id="@project.Id">
@@ -51,8 +50,9 @@
                 <label id="item-start-field"><span>Startdatum</span><input id="task-start" type="date" /></label>
                 <label id="item-due-field"><span>Fällig am</span><input id="task-due" type="date" /></label>
             </div>
-            <label class="form-label" id="item-content-label" for="task-description">Beschreibung</label>
-            <textarea id="task-description" class="description-input" rows="6" placeholder="Details, Notizen und nächste Schritte …"></textarea>
+            <span class="form-label" id="item-content-label">Beschreibung</span>
+            <div id="task-description" class="description-editor"></div>
+            <p id="task-description-error" class="form-error description-error" role="alert"></p>
             <section id="item-custom-fields-section"><div class="section-heading"><h3>Benutzerdefinierte Felder</h3><button type="button" id="drawer-add-field" class="text-button">＋ Feld erstellen</button></div><div id="task-custom-fields" class="custom-fields"></div></section>
             <div id="task-children-section" class="children-section" hidden><div class="section-heading"><h3>Untergeordnete Einträge</h3><div><button type="button" id="add-child-folder-button" class="text-button" hidden>＋ Ordner</button><button type="button" id="add-child-button" class="text-button">＋ Aufgabe</button><button type="button" id="add-child-document-button" class="text-button">＋ Dokument</button></div></div><div id="task-children"></div></div>
             <section id="item-links-section" class="children-section" hidden><div class="section-heading"><h3 id="item-links-heading">Zugehörige Dokumente</h3></div><div id="item-links"></div><div class="item-link-picker"><select id="related-item-picker" aria-label="Eintrag verknüpfen"></select><button type="button" id="add-item-link" class="secondary-button">Verknüpfen</button></div><p id="item-links-error" class="form-error" role="alert"></p></section>

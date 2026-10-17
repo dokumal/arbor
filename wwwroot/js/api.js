@@ -3,7 +3,8 @@ export async function api(path, options = {}) {
     const response = await fetch(path, {
         ...options,
         headers: {
-            'Content-Type': 'application/json',
+            // Form data (image uploads) brings its own multipart content type.
+            ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
             ...(token ? { RequestVerificationToken: token } : {}),
             ...(options.headers || {})
         }
