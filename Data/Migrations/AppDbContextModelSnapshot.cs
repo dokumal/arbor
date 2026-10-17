@@ -33,6 +33,9 @@ namespace QuireClone.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("OptionsJson");
 
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");
 
@@ -43,7 +46,7 @@ namespace QuireClone.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("ProjectId", "Name")
                         .IsUnique();
 
                     b.ToTable("CustomFields");
@@ -84,6 +87,31 @@ namespace QuireClone.Data.Migrations
                     b.ToTable("ItemLinks");
                 });
 
+            modelBuilder.Entity("QuireClone.Domain.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Projects");
+                });
+
             modelBuilder.Entity("QuireClone.Domain.TaskStatusDefinition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -105,12 +133,15 @@ namespace QuireClone.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("ProjectId", "Name")
                         .IsUnique();
 
                     b.ToTable("TaskStatuses", (string)null);
@@ -177,6 +208,9 @@ namespace QuireClone.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("SortDescending")
                         .HasColumnType("INTEGER");
 
@@ -193,6 +227,8 @@ namespace QuireClone.Data.Migrations
                         .HasColumnName("VisibleFieldsJson");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
 
                     b.ToTable("ViewConfigurations");
                 });
@@ -222,6 +258,9 @@ namespace QuireClone.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("ParentTaskId");
 
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");
 
@@ -243,12 +282,23 @@ namespace QuireClone.Data.Migrations
 
                     b.HasIndex("DueDate");
 
+                    b.HasIndex("ProjectId");
+
                     b.HasIndex("StatusId");
 
                     b.HasIndex("ParentId", "SortOrder")
                         .HasDatabaseName("IX_Tasks_ParentTaskId_SortOrder");
 
                     b.ToTable("Tasks", (string)null);
+                });
+
+            modelBuilder.Entity("QuireClone.Domain.CustomFieldDefinition", b =>
+                {
+                    b.HasOne("QuireClone.Domain.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("QuireClone.Domain.ItemFieldValue", b =>
@@ -290,6 +340,24 @@ namespace QuireClone.Data.Migrations
                     b.Navigation("Task");
                 });
 
+            modelBuilder.Entity("QuireClone.Domain.TaskStatusDefinition", b =>
+                {
+                    b.HasOne("QuireClone.Domain.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("QuireClone.Domain.ViewConfiguration", b =>
+                {
+                    b.HasOne("QuireClone.Domain.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("QuireClone.Domain.WorkspaceItem", b =>
                 {
                     b.HasOne("QuireClone.Domain.WorkspaceItem", "ParentItem")
@@ -297,6 +365,12 @@ namespace QuireClone.Data.Migrations
                         .HasForeignKey("ParentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("FK_Tasks_Tasks_ParentTaskId");
+
+                    b.HasOne("QuireClone.Domain.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("QuireClone.Domain.TaskStatusDefinition", "Status")
                         .WithMany()

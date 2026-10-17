@@ -12,6 +12,8 @@ public sealed class ItemLinkService(AppDbContext db)
             ?? throw new EntityNotFoundException("Eintrag nicht gefunden.");
         var related = await db.Items.FindAsync([relatedId], cancellationToken)
             ?? throw new EntityNotFoundException("Verknüpfter Eintrag nicht gefunden.");
+        if (item.ProjectId != related.ProjectId)
+            throw new DomainValidationException("Nur Einträge desselben Projekts können verknüpft werden.");
         if (!ItemKindRules.CanLink(item.Kind, related.Kind))
             throw new DomainValidationException("Eine Verknüpfung verbindet eine Aufgabe mit einem Dokument.");
         var (taskId, documentId) = item.Kind == WorkspaceItemKind.Task ? (item.Id, related.Id) : (related.Id, item.Id);

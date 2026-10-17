@@ -5,6 +5,7 @@ public enum WorkspaceItemKind { Task, Document, Folder }
 public sealed class WorkspaceItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProjectId { get; set; }
     public WorkspaceItemKind Kind { get; set; }
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";

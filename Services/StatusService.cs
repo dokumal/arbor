@@ -5,23 +5,24 @@ using QuireClone.Domain;
 
 namespace QuireClone.Services;
 
-public sealed class StatusService(AppDbContext db)
+public sealed class StatusService(AppDbContext db, ProjectService projects)
 {
     // Categories are stored as text, so the database would sort them alphabetically; order them in memory instead.
-    public async Task<List<TaskStatusDefinition>> ListAsync(CancellationToken cancellationToken) =>
-        (await db.Statuses.AsNoTracking().ToListAsync(cancellationToken))
+    public async Task<List<TaskStatusDefinition>> ListAsync(Guid projectId, CancellationToken cancellationToken) =>
+        (await db.Statuses.AsNoTracking().Where(x => x.ProjectId == projectId).ToListAsync(cancellationToken))
             .OrderBy(x => x.Category).ThenBy(x => x.SortOrder).ThenBy(x => x.Name).ToList();
 
-    // New tasks start with the first open status.
-    public async Task<Guid> DefaultIdAsync(CancellationToken cancellationToken) =>
-        await db.Statuses.Where(x => x.Category == StatusCategory.Open)
+    // New tasks start with the first open status of their project.
+    public async Task<Guid> DefaultIdAsync(Guid projectId, CancellationToken cancellationToken) =>
+        await db.Statuses.Where(x => x.ProjectId == projectId && x.Category == StatusCategory.Open)
             .OrderBy(x => x.SortOrder).Select(x => (Guid?)x.Id).FirstOrDefaultAsync(cancellationToken)
         ?? throw new DomainValidationException("Es gibt keinen offenen Status.");
 
     // Saves the complete list. Renamed statuses keep their id; tasks and saved filters of removed statuses
     // move to the replacement, by default the first remaining status of the same category.
-    public async Task SaveAsync(TaskStatusesRequest request, CancellationToken cancellationToken)
+    public async Task SaveAsync(Guid projectId, TaskStatusesRequest request, CancellationToken cancellationToken)
     {
+        await projects.EnsureExistsAsync(projectId, cancellationToken);
         var changes = request.Statuses.Select(x => new
             { x.Id, Name = x.Name.Trim(), x.Category, Color = x.Color.Trim() }).ToList();
         if (changes.Any(x => x.Name.Length is 0 or > 50))
@@ -35,7 +36,7 @@ public sealed class StatusService(AppDbContext db)
         if (changes.Any(x => !StatusColors.All.Contains(x.Color)))
             throw new DomainValidationException("Ungültige Statusfarbe.");
 
-        var existing = await db.Statuses.ToDictionaryAsync(x => x.Id, cancellationToken);
+        var existing = await db.Statuses.Where(x => x.ProjectId == projectId).ToDictionaryAsync(x => x.Id, cancellationToken);
         var kept = changes.Where(x => x.Id is not null).Select(x => x.Id!.Value).ToList();
         if (kept.Any(x => !existing.ContainsKey(x)) || kept.Distinct().Count() != kept.Count)
             throw new DomainValidationException("Die Status wurden inzwischen geändert. Bitte lade die Seite neu.");
@@ -47,7 +48,7 @@ public sealed class StatusService(AppDbContext db)
             if (change.Id is Guid id) status = existing[id];
             else
             {
-                status = new TaskStatusDefinition();
+                status = new TaskStatusDefinition { ProjectId = projectId };
                 db.Statuses.Add(status);
             }
             status.Name = change.Name;
@@ -63,7 +64,7 @@ public sealed class StatusService(AppDbContext db)
             await db.SaveChangesAsync(cancellationToken);
             return;
         }
-        var views = await db.ViewConfigurations.ToListAsync(cancellationToken);
+        var views = await db.ViewConfigurations.Where(x => x.ProjectId == projectId).ToListAsync(cancellationToken);
         foreach (var status in removed)
         {
             var replacement = request.Replacements.TryGetValue(status.Id, out var replacementId)

@@ -13,7 +13,8 @@ public static class DatabaseInitializer
         await InitializeAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>());
     }
 
-    // Applies migrations and seeds a new, empty database with sample fields and views.
+    // Applies migrations and seeds the first project of a new, empty database with sample fields and views.
+    // The migrations already create that project and its statuses.
     public static async Task InitializeAsync(AppDbContext db, CancellationToken cancellationToken = default)
     {
         await db.Database.MigrateAsync(cancellationToken);
@@ -21,32 +22,13 @@ public static class DatabaseInitializer
         await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=DELETE;", cancellationToken);
         if (await db.ViewConfigurations.AnyAsync(cancellationToken)) return;
 
-        var label = new CustomFieldDefinition { Name = "Label", Type = CustomFieldType.Text };
-        var priority = new CustomFieldDefinition { Name = "Priorität", Type = CustomFieldType.Select,
+        var projectId = await db.Projects.OrderBy(x => x.SortOrder).Select(x => x.Id).FirstAsync(cancellationToken);
+        var label = new CustomFieldDefinition { ProjectId = projectId, Name = "Label", Type = CustomFieldType.Text };
+        var priority = new CustomFieldDefinition { ProjectId = projectId, Name = "Priorität", Type = CustomFieldType.Select,
             Options = [new(Guid.NewGuid(), "Niedrig"), new(Guid.NewGuid(), "Mittel"), new(Guid.NewGuid(), "Hoch")],
             SortOrder = 1 };
         db.CustomFields.AddRange(label, priority);
-        db.ViewConfigurations.AddRange(
-            View("Alle Einträge", ViewKind.Tree, 0, ["kind", "status", "title", "dueDate", FieldKeys.ForCustomField(label.Id), FieldKeys.ForCustomField(priority.Id)]),
-            View("Kanban", ViewKind.Kanban, 1, ["title", "dueDate", FieldKeys.ForCustomField(label.Id)]),
-            View("Kalender", ViewKind.Calendar, 2, ["title", "status", FieldKeys.ForCustomField(label.Id)]),
-            View("Zeitachse", ViewKind.Timeline, 3, ["title", "status", "startDate", "dueDate", FieldKeys.ForCustomField(label.Id)]),
-            UpcomingView(4));
+        db.ViewConfigurations.AddRange(ProjectDefaults.Views(projectId, label.Id, priority.Id));
         await db.SaveChangesAsync(cancellationToken);
     }
-
-    // Open tasks that are overdue or due within the next seven days.
-    private static ViewConfiguration UpcomingView(int order) => new()
-    {
-        Name = "Anstehend", Kind = ViewKind.Tree, SortOrder = order,
-        VisibleFields = [FieldKeys.Title, FieldKeys.Status, FieldKeys.DueDate],
-        Filters = [new ViewFilter(FieldKeys.DueDate, "before", "@today+7")],
-        SortField = FieldKeys.DueDate, HideCompleted = true
-    };
-
-    private static ViewConfiguration View(string name, ViewKind kind, int order, string[] fields) => new()
-    {
-        Name = name, Kind = kind, SortOrder = order,
-        VisibleFields = [.. fields]
-    };
 }

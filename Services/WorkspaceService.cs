@@ -7,22 +7,24 @@ using QuireClone.Domain;
 
 namespace QuireClone.Services;
 
-public sealed partial class WorkspaceService(AppDbContext db, StatusService statusService)
+public sealed partial class WorkspaceService(AppDbContext db, StatusService statusService, ProjectService projects)
 {
-    public async Task<WorkspaceDto> GetAsync(Guid? viewId, CancellationToken cancellationToken)
+    // Everything shown on the workspace page belongs to one project.
+    public async Task<WorkspaceDto> GetAsync(Guid projectId, Guid? viewId, CancellationToken cancellationToken)
     {
-        var items = await db.Items.AsNoTracking().Include(x => x.FieldValues)
+        await projects.EnsureExistsAsync(projectId, cancellationToken);
+        var items = await db.Items.AsNoTracking().Include(x => x.FieldValues).Where(x => x.ProjectId == projectId)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToListAsync(cancellationToken);
-        var statuses = await statusService.ListAsync(cancellationToken);
+        var statuses = await statusService.ListAsync(projectId, cancellationToken);
         var categories = statuses.ToDictionary(x => x.Id, x => x.Category);
-        var fields = await db.CustomFields.AsNoTracking().OrderBy(x => x.SortOrder)
+        var fields = await db.CustomFields.AsNoTracking().Where(x => x.ProjectId == projectId).OrderBy(x => x.SortOrder)
             .ToListAsync(cancellationToken);
-        var views = await db.ViewConfigurations.AsNoTracking().OrderBy(x => x.SortOrder)
+        var views = await db.ViewConfigurations.AsNoTracking().Where(x => x.ProjectId == projectId).OrderBy(x => x.SortOrder)
             .ToListAsync(cancellationToken);
         var selectedView = viewId is null ? views.FirstOrDefault() : views.FirstOrDefault(x => x.Id == viewId);
         var activeFilters = selectedView?.Filters ?? [];
 
-        var links = await db.ItemLinks.AsNoTracking().ToListAsync(cancellationToken);
+        var links = await db.ItemLinks.AsNoTracking().Where(x => x.Task.ProjectId == projectId).ToListAsync(cancellationToken);
         var itemDtos = items.Select(x => new WorkspaceItemDto(x.Id, x.Kind, x.Title, x.Description,
             x.ParentId, x.StatusId, x.StartDate, x.DueDate, x.SortOrder,
             x.UpdatedAt, x.FieldValues.ToDictionary(v => v.FieldId, v => v.Value))).ToList();

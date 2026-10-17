@@ -10,11 +10,11 @@ Voraussetzung ist nur das .NET 10 SDK. Zum Starten reicht:
 dotnet run
 ```
 
-Danach `http://localhost:5222` öffnen. Beim ersten Start legt die App die Datenbank `.local/arbor.db` an, führt die EF Core Migration aus und erstellt Beispiel-Felder und -Ansichten. Bilder aus Beschreibungen landen in `.local/images`. Der Ordner `.local` ist von Git ausgeschlossen.
+Danach `http://localhost:5222` öffnen. Beim ersten Start legt die App die Datenbank `.local/arbor.db` an, führt die EF Core Migration aus und legt das erste Projekt mit Beispiel-Feldern und -Ansichten an. Bilder aus Beschreibungen landen in `.local/images`. Der Ordner `.local` ist von Git ausgeschlossen.
 
 ## Speicherorte
 
-Über **Einstellungen** oben rechts lassen sich der Pfad der Datenbank-Datei und der Bilder-Ordner ändern. Pfade können absolut oder relativ zum Programmordner sein; Umgebungsvariablen wie `%USERPROFILE%` werden aufgelöst. Die Auswahl wird in `.local/storage.json` gespeichert, nicht in der Datenbank selbst.
+Über **Einstellungen** in der Seitenleiste lassen sich der Pfad der Datenbank-Datei und der Bilder-Ordner ändern. Pfade können absolut oder relativ zum Programmordner sein; Umgebungsvariablen wie `%USERPROFILE%` werden aufgelöst. Die Auswahl wird in `.local/storage.json` gespeichert, nicht in der Datenbank selbst.
 
 - Liegt am neuen Datenbank-Pfad noch keine Datei, wird die aktuelle Datenbank dorthin verschoben.
 - Liegt dort bereits eine Arbor-Datenbank, wird sie verwendet (und bei Bedarf migriert); die bisherige Datei bleibt am alten Ort. Dateien anderer Programme werden abgelehnt.
@@ -48,6 +48,20 @@ Die Datenbank ist eine einzelne Datei (ohne WAL-Nebendateien). Für ein Backup g
 - Zeitachse mit wählbaren Intervallen Woche, Monat und 3 Monate; die Auswahl bleibt im Browser gespeichert
 - SunEditor für Überschriften, Listen, Tabellen und Bilder in Aufgabenbeschreibungen. Bilder lassen sich auch aus der Zwischenablage einfügen und werden im eingestellten Bilder-Ordner gespeichert (Standard: `.local/images`).
 
+## Projekte
+
+Aufgaben, Dokumente und Ordner gehören jeweils zu genau einem Projekt. Projekte sind nicht verschachtelt und streng voneinander getrennt: Jedes Projekt hat eigene Status, eigene Felder und eigene gespeicherte Ansichten. Übergeordnete Einträge, Verknüpfungen, Status und Feldwerte können nur innerhalb desselben Projekts verwendet werden; Status- und Feldnamen müssen nur innerhalb eines Projekts eindeutig sein.
+
+- Die Projekte stehen in der Seitenleiste. „＋“ legt ein neues Projekt an; es startet mit den Status „Offen“, „In Arbeit“ und „Erledigt“ und den üblichen Ansichten, aber ohne eigene Felder
+- „⋯“ neben einem Projekt öffnet das Bearbeiten: umbenennen oder löschen. Beim Löschen werden alle Einträge, Status, Felder und Ansichten des Projekts entfernt. Das letzte Projekt kann nicht gelöscht werden
+- Ein Projekt hat die Adresse `/projekte/{id}`. Die Startseite öffnet das zuletzt besuchte Projekt
+- Die zuletzt gewählte Ansicht merkt sich der Browser pro Projekt
+- Daten aus der Zeit vor den Projekten liegen im Projekt „Mein Projekt“
+
+## Seitenleiste
+
+Die Navigation liegt in einer Seitenleiste links. Das Menü-Symbol oben links blendet sie ein und aus; geöffnet liegt sie über der Seite und schließt sich mit Escape oder einem Klick daneben. Mit der Stecknadel lässt sie sich fixieren: Sie steht dann dauerhaft neben dem Inhalt, auch auf den anderen Seiten (im Browser gespeichert). Auf schmalen Bildschirmen liegt sie immer über der Seite.
+
 ## Status
 
 Die Status von Aufgaben sind frei konfigurierbar. Jeder Status gehört zu einer festen Kategorie: **Offen**, **In Arbeit** oder **Abgeschlossen**. Die App wertet nur die Kategorie aus: Abgeschlossene Aufgaben gelten als erledigt, werden nie als überfällig markiert und lassen sich pro Ansicht ausblenden. Neue Aufgaben erhalten den ersten offenen Status.
@@ -60,7 +74,7 @@ Die Status von Aufgaben sind frei konfigurierbar. Jeder Status gehört zu einer 
 
 ## Aufwände
 
-Unter **Aufwände** in der Menüleiste werden Arbeitszeiten erfasst, getrennt von Aufgaben und Dokumenten. Ein Aufwand hat einen Tag, Beginn, Ende und eine Beschreibung.
+Unter **Aufwände** in der Seitenleiste werden Arbeitszeiten erfasst, getrennt von Aufgaben und Dokumenten und für alle Projekte gemeinsam. Ein Aufwand hat einen Tag, Beginn, Ende und eine Beschreibung.
 
 - Wochenansicht von Montag bis Freitag mit dem Arbeitstag von 8 bis 18 Uhr; mit Pfeilen oder den Pfeiltasten wechselt man die Woche, „Heute“ springt zurück
 - Ein Klick in einen freien Bereich erfasst die angeklickte halbe Stunde, Ziehen wählt einen beliebigen Zeitraum im 15-Minuten-Raster
@@ -81,7 +95,9 @@ Für die Baumansicht werden bei Treffern unterhalb eines gefilterten Elternknote
 
 Services melden Regelverstöße mit `DomainValidationException` (400) oder `EntityNotFoundException` (404). `DomainExceptionFilter` macht daraus einheitlich ProblemDetails mit der Meldung in `detail`; der Bild-Upload ergänzt für SunEditor zusätzlich `errorMessage`. Die Razor Seiten liegen unter `Views/Workspace` und `Views/Settings`, die Oberfläche unter `wwwroot/js` und `wwwroot/css`. `StorageSettings` hält die Speicherorte, `StorageLocationService` verschiebt Datenbank und Bilder beim Ändern.
 
-`WorkspaceItem` bildet den gemeinsamen Baum ab und unterscheidet mit `Kind` zwischen Ordner, Aufgabe und Dokument. `ItemLink` enthält zusätzliche Beziehungen zwischen Aufgaben und Dokumenten unabhängig von der Baumposition. `WorkspaceItemService` übernimmt Änderungen am Baum und den Inhalten sowie die Elternregeln für Ordner, `ItemLinkService` die Verknüpfungen. Die JSON-Endpunkte liegen unter `/api/items`; Verknüpfungen unter `/api/items/{id}/links`. Im Frontend sind die Berechnung der zugehörigen Einträge und deren Bearbeitung in `item-relations.js` und `item-links.js` gekapselt.
+`Project` ist die oberste Gruppierung. Einträge, Status, eigene Felder und Ansichten tragen eine `ProjectId`; Feldwerte und Verknüpfungen hängen an Einträgen und gehören damit ebenfalls zu deren Projekt. `ProjectService` legt Projekte mit ihren Standard-Status und -Ansichten (`ProjectDefaults`) an und löscht sie samt Inhalt. Die Services prüfen, dass alles, worauf ein Eintrag oder eine Ansicht verweist, aus demselben Projekt stammt. Projekte werden unter `/api/projects` verwaltet; Listen und neue Einträge, Felder, Ansichten und Status liegen unter `/api/projects/{projectId}/…`, bestehende Objekte werden direkt über ihre ID angesprochen. Die Seitenleiste steuert `sidebar.js`, die Projekt-ID der Seite liefert `project.js`.
+
+`WorkspaceItem` bildet den gemeinsamen Baum ab und unterscheidet mit `Kind` zwischen Ordner, Aufgabe und Dokument. `ItemLink` enthält zusätzliche Beziehungen zwischen Aufgaben und Dokumenten unabhängig von der Baumposition. `WorkspaceItemService` übernimmt Änderungen am Baum und den Inhalten sowie die Elternregeln für Ordner, `ItemLinkService` die Verknüpfungen. Neue Einträge entstehen unter `/api/projects/{projectId}/items`, bestehende werden unter `/api/items/{id}` geändert; Verknüpfungen liegen unter `/api/items/{id}/links`. Im Frontend sind die Berechnung der zugehörigen Einträge und deren Bearbeitung in `item-relations.js` und `item-links.js` gekapselt.
 
 `TimeEntry` ist ein Aufwand; `TimeEntryService` prüft und speichert ihn (Ende nach Beginn, Beschreibung erforderlich, höchstens 500 Zeichen). Die Endpunkte liegen unter `/api/time-entries` (Abfrage mit `?from=…&to=…`), die Seite unter `/aufwaende`. Die Datums- und Layoutberechnung der Wochenansicht steckt in `time-week.js`, die Bedienung in `time-entries.js`.
 

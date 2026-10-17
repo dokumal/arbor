@@ -1,6 +1,7 @@
-// The task statuses of the workspace, ordered by category and position. app.js sets them after every load.
+// The task statuses of the project, ordered by category and position. app.js sets them after every load.
 // Every status belongs to a fixed category; the app only looks at the category, e.g. for "completed".
 import { api } from './api.js?v=problem-details';
+import { projectPath } from './project.js';
 
 export const statusCategories = { Open: 'Offen', Active: 'In Arbeit', Done: 'Abgeschlossen' };
 export const statusColors = { gray: 'Grau', slate: 'Schiefer', blue: 'Blau', teal: 'Petrol', green: 'Grün', orange: 'Orange', purple: 'Lila', pink: 'Pink' };
@@ -34,7 +35,7 @@ export function unusedName(base = 'Neuer Status') {
 
 // Saves the complete list in display order ({ id, name, category, color }, id null for new statuses).
 // Tasks of removed statuses move to replacements[removedId], by default the first remaining status of the same category.
-export const saveStatusList = (statuses, replacements = {}) => api('/api/statuses', { method: 'PUT', body: JSON.stringify({
+export const saveStatusList = (statuses, replacements = {}) => api(projectPath('/statuses'), { method: 'PUT', body: JSON.stringify({
     statuses: statuses.map(({ id, name, category, color }) => ({ id: id || null, name, category, color })), replacements }) });
 
 // The status a filter value stands for when a new entry is prefilled from it.

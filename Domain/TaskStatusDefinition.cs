@@ -9,6 +9,7 @@ public enum StatusCategory { Open, Active, Done }
 public sealed class TaskStatusDefinition
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProjectId { get; set; }
     public string Name { get; set; } = "";
     public StatusCategory Category { get; set; }
     // A key from StatusColors.All; the frontend maps it to a colour.
@@ -25,7 +26,7 @@ public static class StatusColors
         new HashSet<string> { "gray", "slate", "blue", "teal", "green", "orange", "purple", "pink" };
 }
 
-/// <summary>The statuses every database starts with; they replace the former fixed values Todo, Doing and Done.</summary>
+/// <summary>The statuses of the first project; they replace the former fixed values Todo, Doing and Done.</summary>
 public static class DefaultStatuses
 {
     public static readonly Guid Open = new("3b1f6c0e-5a4d-4e8b-9a52-0c6f1d2e7a01");

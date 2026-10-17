@@ -131,3 +131,11 @@ public sealed class TimeEntrySaveRequest
     public TimeOnly? End { get; set; }
     public string Description { get; set; } = "";
 }
+
+public sealed record ProjectDto(Guid Id, string Name, int SortOrder);
+
+public sealed class ProjectSaveRequest
+{
+    [Required, StringLength(100, MinimumLength = 1)]
+    public string Name { get; set; } = "";
+}

@@ -6,9 +6,22 @@ using QuireClone.Domain;
 
 namespace QuireClone.Services;
 
-public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses)
+public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses, ProjectService projects)
 {
-    public async Task<WorkspaceItem> SaveAsync(Guid? id, ItemSaveRequest request, CancellationToken cancellationToken)
+    public async Task<WorkspaceItem> CreateAsync(Guid projectId, ItemSaveRequest request, CancellationToken cancellationToken)
+    {
+        await projects.EnsureExistsAsync(projectId, cancellationToken);
+        return await SaveAsync(null, projectId, request, cancellationToken);
+    }
+
+    public async Task UpdateAsync(Guid id, ItemSaveRequest request, CancellationToken cancellationToken)
+    {
+        var projectId = await db.Items.Where(x => x.Id == id).Select(x => (Guid?)x.ProjectId).FirstOrDefaultAsync(cancellationToken)
+            ?? throw new EntityNotFoundException("Eintrag nicht gefunden.");
+        await SaveAsync(id, projectId, request, cancellationToken);
+    }
+
+    private async Task<WorkspaceItem> SaveAsync(Guid? id, Guid projectId, ItemSaveRequest request, CancellationToken cancellationToken)
     {
         var title = request.Title.Trim();
         if (!Enum.IsDefined(request.Kind)) throw new DomainValidationException("Ungültiger Eintragstyp.");
@@ -19,14 +32,14 @@ public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses
             (request.StartDate is not null || request.DueDate is not null || request.StatusId is not null))
             throw new DomainValidationException("Nur Aufgaben haben Termine und einen Status.");
         var statusId = ItemKindRules.HasSchedule(request.Kind)
-            ? await ValidStatusIdAsync(request.StatusId, cancellationToken) : (Guid?)null;
+            ? await ValidStatusIdAsync(projectId, request.StatusId, cancellationToken) : (Guid?)null;
         if (!ItemKindRules.HasCustomFields(request.Kind) && request.Fields.Count > 0)
             throw new DomainValidationException("Ordner haben keine eigenen Felder.");
 
         WorkspaceItem item;
         if (id is null)
         {
-            item = new WorkspaceItem { SortOrder = await NextSortOrderAsync(request.ParentId, cancellationToken) };
+            item = new WorkspaceItem { ProjectId = projectId, SortOrder = await NextSortOrderAsync(projectId, request.ParentId, cancellationToken) };
             db.Items.Add(item);
         }
         else
@@ -37,11 +50,11 @@ public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses
             if (item.Kind != request.Kind)
                 throw new DomainValidationException("Der Eintragstyp kann nach dem Erstellen nicht geändert werden.");
             if (item.ParentId != request.ParentId)
-                item.SortOrder = await NextSortOrderAsync(request.ParentId, cancellationToken);
+                item.SortOrder = await NextSortOrderAsync(projectId, request.ParentId, cancellationToken);
         }
 
-        await ValidateParentAsync(item.Id, request.Kind, request.ParentId, cancellationToken);
-        var definitions = await db.CustomFields.ToDictionaryAsync(x => x.Id, cancellationToken);
+        await ValidateParentAsync(projectId, item.Id, request.Kind, request.ParentId, cancellationToken);
+        var definitions = await db.CustomFields.Where(x => x.ProjectId == projectId).ToDictionaryAsync(x => x.Id, cancellationToken);
         var values = new Dictionary<Guid, string>();
         foreach (var (fieldId, value) in request.Fields)
         {
@@ -98,7 +111,7 @@ public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses
         var item = await FindAsync(id, cancellationToken);
         if (!ItemKindRules.HasSchedule(item.Kind))
             throw new DomainValidationException("Nur Aufgaben haben einen Status.");
-        item.StatusId = await ValidStatusIdAsync(statusId, cancellationToken);
+        item.StatusId = await ValidStatusIdAsync(item.ProjectId, statusId, cancellationToken);
         item.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -110,7 +123,7 @@ public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses
             ?? throw new EntityNotFoundException("Eintrag nicht gefunden.");
         if (!ItemKindRules.HasCustomFields(item.Kind))
             throw new DomainValidationException("Ordner haben keine eigenen Felder.");
-        var field = await db.CustomFields.FindAsync([fieldId], cancellationToken)
+        var field = await db.CustomFields.FirstOrDefaultAsync(x => x.Id == fieldId && x.ProjectId == item.ProjectId, cancellationToken)
             ?? throw new DomainValidationException("Ein benutzerdefiniertes Feld existiert nicht mehr.");
         var normalized = NormalizeValue(field, value);
 
@@ -131,8 +144,8 @@ public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses
     public async Task MoveAsync(Guid id, TaskMoveRequest request, CancellationToken cancellationToken)
     {
         var item = await FindAsync(id, cancellationToken);
-        await ValidateParentAsync(id, item.Kind, request.ParentId, cancellationToken);
-        var siblings = await db.Items.Where(x => x.ParentId == request.ParentId && x.Id != id)
+        await ValidateParentAsync(item.ProjectId, id, item.Kind, request.ParentId, cancellationToken);
+        var siblings = await db.Items.Where(x => x.ProjectId == item.ProjectId && x.ParentId == request.ParentId && x.Id != id)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToListAsync(cancellationToken);
         var position = request.BeforeTaskId is Guid beforeId
             ? siblings.FindIndex(x => x.Id == beforeId) : siblings.Count;
@@ -142,7 +155,7 @@ public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses
         var oldParent = item.ParentId;
         if (oldParent != request.ParentId)
         {
-            var oldSiblings = await db.Items.Where(x => x.ParentId == oldParent && x.Id != id)
+            var oldSiblings = await db.Items.Where(x => x.ProjectId == item.ProjectId && x.ParentId == oldParent && x.Id != id)
                 .OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToListAsync(cancellationToken);
             for (var i = 0; i < oldSiblings.Count; i++) oldSiblings[i].SortOrder = i;
         }
@@ -163,19 +176,20 @@ public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses
     private async Task<WorkspaceItem> FindAsync(Guid id, CancellationToken cancellationToken) =>
         await db.Items.FindAsync([id], cancellationToken) ?? throw new EntityNotFoundException("Eintrag nicht gefunden.");
 
-    // A task without a status gets the default one.
-    private async Task<Guid> ValidStatusIdAsync(Guid? statusId, CancellationToken cancellationToken)
+    // A task without a status gets the default one; a given status must belong to the same project.
+    private async Task<Guid> ValidStatusIdAsync(Guid projectId, Guid? statusId, CancellationToken cancellationToken)
     {
-        if (statusId is null) return await statuses.DefaultIdAsync(cancellationToken);
-        if (!await db.Statuses.AnyAsync(x => x.Id == statusId, cancellationToken))
+        if (statusId is null) return await statuses.DefaultIdAsync(projectId, cancellationToken);
+        if (!await db.Statuses.AnyAsync(x => x.Id == statusId && x.ProjectId == projectId, cancellationToken))
             throw new DomainValidationException("Der Status existiert nicht mehr. Bitte lade die Seite neu.");
         return statusId.Value;
     }
 
-    private async Task<int> NextSortOrderAsync(Guid? parentId, CancellationToken cancellationToken) =>
-        (await db.Items.Where(x => x.ParentId == parentId).MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1;
+    private async Task<int> NextSortOrderAsync(Guid projectId, Guid? parentId, CancellationToken cancellationToken) =>
+        (await db.Items.Where(x => x.ProjectId == projectId && x.ParentId == parentId).MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1;
 
-    private async Task ValidateParentAsync(Guid itemId, WorkspaceItemKind kind, Guid? parentId, CancellationToken cancellationToken)
+    // The parent must belong to the same project; its ancestors then do as well.
+    private async Task ValidateParentAsync(Guid projectId, Guid itemId, WorkspaceItemKind kind, Guid? parentId, CancellationToken cancellationToken)
     {
         var visited = new HashSet<Guid> { itemId };
         var directParent = true;
@@ -184,8 +198,10 @@ public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses
             if (!visited.Add(current))
                 throw new DomainValidationException("Ein Eintrag kann nicht unter sich selbst eingeordnet werden.");
             var parent = await db.Items.Where(x => x.Id == current)
-                .Select(x => new { x.ParentId, x.Kind }).FirstOrDefaultAsync(cancellationToken)
+                .Select(x => new { x.ParentId, x.Kind, x.ProjectId }).FirstOrDefaultAsync(cancellationToken)
                 ?? throw new DomainValidationException("Der übergeordnete Eintrag existiert nicht.");
+            if (directParent && parent.ProjectId != projectId)
+                throw new DomainValidationException("Der übergeordnete Eintrag gehört zu einem anderen Projekt.");
             if (directParent && !ItemKindRules.CanContain(parent.Kind, kind))
                 throw new DomainValidationException("Ordner können nur auf der obersten Ebene oder unter anderen Ordnern liegen.");
             parentId = parent.ParentId;

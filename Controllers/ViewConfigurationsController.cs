@@ -5,24 +5,24 @@ using QuireClone.Services;
 namespace QuireClone.Controllers;
 
 [ApiController]
-[Route("api/views")]
+[Route("api")]
 public sealed class ViewConfigurationsController(ViewConfigurationService views) : ControllerBase
 {
-    [HttpPost]
-    public async Task<IActionResult> Create(ViewConfigurationSaveRequest request, CancellationToken cancellationToken)
+    [HttpPost("projects/{projectId:guid}/views")]
+    public async Task<IActionResult> Create(Guid projectId, ViewConfigurationSaveRequest request, CancellationToken cancellationToken)
     {
-        var id = await views.CreateAsync(request, cancellationToken);
+        var id = await views.CreateAsync(projectId, request, cancellationToken);
         return Created($"/api/views/{id}", new { id });
     }
 
-    [HttpPut("{id:guid}")]
+    [HttpPut("views/{id:guid}")]
     public async Task<IActionResult> Update(Guid id, ViewConfigurationSaveRequest request, CancellationToken cancellationToken)
     {
         await views.UpdateAsync(id, request, cancellationToken);
         return NoContent();
     }
 
-    [HttpDelete("{id:guid}")]
+    [HttpDelete("views/{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await views.DeleteAsync(id, cancellationToken);

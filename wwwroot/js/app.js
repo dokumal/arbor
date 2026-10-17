@@ -1,4 +1,5 @@
 import { api } from './api.js?v=problem-details';
+import { projectKey, projectPath } from './project.js';
 import { escapeHtml, fieldLabel, kinds, renderView, descriptionText, customFieldText, statusDot } from './render.js?v=statuses';
 import { getDescription, setDescription } from './description-editor.js';
 import { initializeTaskDisplay } from './task-display.js';
@@ -20,7 +21,7 @@ const localMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2
 const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 const savedTimelineInterval = localStorage.getItem('arbor-timeline-interval');
 const ui = {
-    viewId: localStorage.getItem('arbor-view'), kind: localStorage.getItem('arbor-kind'),
+    viewId: localStorage.getItem(projectKey('arbor-view')), kind: localStorage.getItem('arbor-kind'),
     selectedTaskId: null,
     expanded: new Set(), seenTasks: new Set(), collapsedGroups: new Set(), month: localMonth,
     timelineDate: today.toISOString().slice(0, 10),
@@ -54,21 +55,21 @@ initializeTimelineDrag($('view-content'), taskById, async (id, dates) => {
 
 async function loadWorkspace(preferredViewId = ui.viewId, preferredKind = ui.kind) {
     const query = preferredViewId ? `?viewId=${encodeURIComponent(preferredViewId)}` : '';
-    workspace = await api(`/api/workspace${query}`);
+    workspace = await api(projectPath(`/workspace${query}`));
     const requestedView = workspace.views.find(view => view.id === preferredViewId);
     ui.kind = kinds[preferredKind] ? preferredKind : requestedView?.kind || 'Tree';
     const available = workspace.views.filter(view => view.kind === ui.kind);
     const selected = available.find(view => view.id === preferredViewId)
-        || available.find(view => view.id === localStorage.getItem(`arbor-view-${ui.kind}`))
+        || available.find(view => view.id === localStorage.getItem(projectKey(`arbor-view-${ui.kind}`)))
         || available[0] || null;
     ui.viewId = selected?.id || null;
     if (ui.viewId && ui.viewId !== preferredViewId)
-        workspace = await api(`/api/workspace?viewId=${encodeURIComponent(ui.viewId)}`);
+        workspace = await api(projectPath(`/workspace?viewId=${encodeURIComponent(ui.viewId)}`));
     localStorage.setItem('arbor-kind', ui.kind);
     if (ui.viewId) {
-        localStorage.setItem('arbor-view', ui.viewId);
-        localStorage.setItem(`arbor-view-${ui.kind}`, ui.viewId);
-    } else localStorage.removeItem('arbor-view');
+        localStorage.setItem(projectKey('arbor-view'), ui.viewId);
+        localStorage.setItem(projectKey(`arbor-view-${ui.kind}`), ui.viewId);
+    } else localStorage.removeItem(projectKey('arbor-view'));
     setStatuses(workspace.statuses);
     workspace.items.forEach(task => {
         if (!ui.seenTasks.has(task.id)) {
@@ -248,7 +249,7 @@ async function saveTask(event) {
     };
     const prefilled = $('task-form').dataset.prefilled === 'true';
     try {
-        const saved = await api(id ? `/api/items/${id}` : '/api/items', { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
+        const saved = await api(id ? `/api/items/${id}` : projectPath('/items'), { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
         closeTask();
         await loadWorkspace(kind !== 'Task' && ui.kind !== 'Tree' ? null : ui.viewId, kind !== 'Task' ? 'Tree' : ui.kind);
         // Values changed in the drawer can take the entry out of the view it was created for.
@@ -364,7 +365,7 @@ async function saveView(event) {
         visibleFields, filters };
     try {
         const id = ui.editingViewId;
-        const result = await api(id ? `/api/views/${id}` : '/api/views', { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
+        const result = await api(id ? `/api/views/${id}` : projectPath('/views'), { method: id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
         $('view-dialog').close(); await loadWorkspace(id || result.id, payload.kind); notify('Konfiguration gespeichert.');
     } catch (error) { showError('view-form-error', error); }
 }
@@ -376,7 +377,7 @@ async function deleteView() {
         await api(`/api/views/${id}`, { method: 'DELETE' });
         $('view-dialog').close();
         if (id === ui.viewId) {
-            localStorage.removeItem(`arbor-view-${ui.kind}`);
+            localStorage.removeItem(projectKey(`arbor-view-${ui.kind}`));
             ui.viewId = null;
         }
         await loadWorkspace(ui.viewId, ui.kind);
@@ -455,7 +456,7 @@ async function saveField(event) {
     const payload = { name: $('field-name').value.trim(), type,
         options: type === 'Select' ? readOptions($('field-options')).map(option => option.name) : [] };
     try {
-        await api('/api/fields', { method: 'POST', body: JSON.stringify(payload) });
+        await api(projectPath('/fields'), { method: 'POST', body: JSON.stringify(payload) });
         $('field-dialog').close(); resetFieldForm(); await loadWorkspace();
         refreshDrawerFields(previousValues);
         notify('Feld erstellt.');
@@ -634,4 +635,4 @@ document.addEventListener('keydown', event => {
 });
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('task-drawer').hidden && !document.querySelector('dialog[open]')) closeTask(); });
 
-loadWorkspace().catch(error => { $('view-content').innerHTML = `<div class="empty-state"><h3>Workspace konnte nicht geladen werden</h3><p>${escapeHtml(error.message)}</p></div>`; });
+loadWorkspace().catch(error => { $('view-content').innerHTML = `<div class="empty-state"><h3>Projekt konnte nicht geladen werden</h3><p>${escapeHtml(error.message)}</p></div>`; });

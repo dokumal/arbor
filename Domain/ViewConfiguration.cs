@@ -5,6 +5,7 @@ public enum ViewKind { Tree, Kanban, Calendar, Timeline }
 public sealed class ViewConfiguration
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProjectId { get; set; }
     public string Name { get; set; } = "";
     public ViewKind Kind { get; set; }
     public List<ViewFilter> Filters { get; set; } = [];

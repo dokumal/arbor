@@ -5,6 +5,7 @@ namespace QuireClone.Data;
 
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public DbSet<Project> Projects => Set<Project>();
     public DbSet<WorkspaceItem> Items => Set<WorkspaceItem>();
     public DbSet<ItemLink> ItemLinks => Set<ItemLink>();
     public DbSet<TaskStatusDefinition> Statuses => Set<TaskStatusDefinition>();
@@ -15,6 +16,19 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Project>(entity =>
+        {
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
+
+        // Items, statuses, fields and views belong to exactly one project. ProjectService deletes a project's
+        // data in dependency order, because the database cascade would hit the restricted status reference first.
+        modelBuilder.Entity<WorkspaceItem>().HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<TaskStatusDefinition>().HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<CustomFieldDefinition>().HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ViewConfiguration>().HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+
         modelBuilder.Entity<WorkspaceItem>(entity =>
         {
             // Table and column names date from when every item was a task.
@@ -36,7 +50,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.ToTable("TaskStatuses");
             entity.Property(x => x.Name).HasMaxLength(50).IsRequired();
-            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasIndex(x => new { x.ProjectId, x.Name }).IsUnique();
             entity.Property(x => x.Category).HasConversion<string>().HasMaxLength(16);
             entity.Property(x => x.Color).HasMaxLength(16).IsRequired();
         });
@@ -44,7 +58,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<CustomFieldDefinition>(entity =>
         {
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
-            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasIndex(x => new { x.ProjectId, x.Name }).IsUnique();
             entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(16);
             entity.Property(x => x.Options).HasJsonConversion("OptionsJson");
         });

@@ -51,19 +51,53 @@ button:disabled{cursor:not-allowed;opacity:.5}
 /* App shell */
 .app-shell{min-height:100vh}
 .topbar{height:58px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,3vw,40px)}
-.topbar-left{display:flex;align-items:center;gap:24px;min-width:0}
-.main-nav{display:flex;align-items:center;gap:4px}
-.main-nav a{padding:7px 12px;border-radius:var(--radius-sm);color:var(--text-3);font-size:13px;font-weight:650;text-decoration:none;white-space:nowrap}
-.main-nav a:hover{background:var(--surface-2);color:var(--text)}
-.main-nav a[aria-current=page]{background:var(--accent-soft);color:var(--accent-text)}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
 .brand{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:750;letter-spacing:-.05em;color:var(--text);text-decoration:none}
 .brand-mark{width:30px;height:30px;display:grid;place-items:center;background:var(--accent);color:#fff;border-radius:8px;font-size:19px;font-weight:400;letter-spacing:0}
-.brand-divider{height:22px;border-left:1px solid var(--border);margin:0 8px}
-.workspace-name{font-size:13px;font-weight:600;letter-spacing:0;color:var(--text-2)}
+.brand-divider{height:22px;border-left:1px solid var(--border);margin:0 4px}
+.workspace-name{font-size:13px;font-weight:600;letter-spacing:0;color:var(--text-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .top-actions{display:flex;align-items:center;gap:8px}
 .top-actions .quiet-button{text-decoration:none}
 .quiet-button svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .quiet-button[aria-current=page]{background:var(--accent-soft);border-color:var(--accent-border);color:var(--accent-text)}
+
+/* Sidebar: closed, open above the page, or pinned beside it on wide screens */
+:root{--sidebar-width:264px}
+.sidebar-toggle{margin-left:-8px}
+.sidebar-toggle svg,.sidebar-pin svg,.sidebar-link svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sidebar{position:fixed;inset:0 auto 0 0;z-index:40;width:var(--sidebar-width);max-width:calc(100vw - 48px);display:flex;flex-direction:column;background:var(--surface);border-right:1px solid var(--border);transform:translateX(-100%);visibility:hidden;transition:transform .18s ease,visibility 0s linear .18s}
+.sidebar-open .sidebar{transform:none;visibility:visible;box-shadow:0 20px 60px #0f241a33;transition:transform .18s ease}
+.sidebar-backdrop{position:fixed;inset:0;z-index:39;background:#0f241a40;opacity:0;pointer-events:none;transition:opacity .18s}
+.sidebar-open .sidebar-backdrop{opacity:1;pointer-events:auto}
+.sidebar-header{height:58px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px 0 16px;border-bottom:1px solid var(--border)}
+.sidebar-pin[aria-pressed=true]{background:var(--accent-soft);color:var(--accent-text)}
+.sidebar-pin[aria-pressed=true] svg{fill:currentColor}
+.sidebar-nav{flex:1;overflow-y:auto;padding:8px 10px 20px}
+.sidebar-section{display:flex;align-items:center;justify-content:space-between;min-height:34px;margin-top:14px;padding:0 6px;color:var(--text-3);font-size:10px;font-weight:750;letter-spacing:.1em}
+.sidebar-add{border:0;background:transparent;color:var(--accent-text);width:28px;height:28px;border-radius:6px;font-size:16px;line-height:1}
+.sidebar-add:hover{background:var(--accent-soft)}
+.project-list{list-style:none;margin:0;padding:0}
+.project-entry{position:relative;display:flex;align-items:center;border-radius:var(--radius-sm)}
+.project-entry a,.sidebar-link{flex:1;min-width:0;display:flex;align-items:center;gap:10px;min-height:38px;padding:5px 8px;border-radius:var(--radius-sm);color:var(--text-2);font-size:13px;font-weight:600;text-decoration:none}
+.project-entry a{padding-right:38px}
+.project-entry:hover a,.sidebar-link:hover{background:var(--surface-2);color:var(--text)}
+.project-entry a[aria-current=page],.sidebar-link[aria-current=page]{background:var(--accent-soft);color:var(--accent-text)}
+.project-mark{flex:none;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;background:var(--surface-3);color:var(--text-2);font-size:12px;font-weight:750}
+.project-entry a[aria-current=page] .project-mark{background:var(--accent);color:#fff}
+.project-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.project-edit{position:absolute;right:4px;width:30px;height:30px;border:0;border-radius:6px;background:transparent;color:var(--text-3);font-size:16px;line-height:1;opacity:0}
+.project-entry:hover .project-edit,.project-edit:focus-visible,.project-entry a[aria-current=page]+.project-edit{opacity:1}
+.project-edit:hover{background:var(--surface-3);color:var(--text)}
+@media(hover:none){.project-edit{opacity:1}}
+@media(min-width:900px){
+    .sidebar-pinned .sidebar{transform:none;visibility:visible;box-shadow:none;transition:none}
+    .sidebar-pinned .sidebar-backdrop{display:none}
+    .sidebar-pinned .app-shell{margin-left:var(--sidebar-width)}
+    .sidebar-pinned .topbar-brand,.sidebar-pinned .brand-divider{display:none}
+}
+@media(max-width:899px){.sidebar-pin{display:none}}
+@media(prefers-reduced-motion:reduce){.sidebar,.sidebar-open .sidebar,.sidebar-backdrop{transition:none}}
+
 main{max-width:1600px;margin:auto;padding:0 clamp(16px,3vw,40px) 48px}
 .page-heading{display:flex;align-items:end;justify-content:space-between;gap:20px;padding:26px 0 18px}
 .eyebrow{font-size:11px;letter-spacing:.14em;color:var(--accent-text);font-weight:750}
@@ -538,9 +572,8 @@ select.inline-field:focus{cursor:pointer}
 @media(max-width:600px){
     .topbar{height:54px}
     .brand{font-size:19px}
-    .workspace-name,.brand-divider{display:none}
+    .topbar-brand,.brand-divider{display:none}
     .topbar-left{gap:10px}
-    .main-nav a{padding:7px 9px}
     .time-toolbar{flex-wrap:wrap}
     .entry-time-grid{grid-template-columns:1fr 1fr}
     .entry-time-grid label:first-child{grid-column:1/-1}

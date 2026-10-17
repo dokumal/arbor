@@ -1,3 +1,9 @@
+@inject QuireClone.Services.ProjectService ProjectService
+@{
+    var page = ViewData["Page"] as string;
+    var currentProject = ViewData["Project"] as ProjectDto;
+    var projects = await ProjectService.ListAsync(Context.RequestAborted);
+}
 <!doctype html>
 <html lang="de">
 <head>
@@ -5,27 +11,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
     <title>@ViewData["Title"] · Arbor</title>
+    @* Applied before the first paint, so a pinned sidebar doesn't slide in on every page. *@
+    <script>try { if (localStorage.getItem('arbor-sidebar') === 'pinned') document.documentElement.classList.add('sidebar-pinned'); } catch { }</script>
     <link rel="stylesheet" href="~/lib/suneditor/suneditor.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/lib/suneditor/suneditor-contents.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
+    @Html.AntiForgeryToken()
+    <aside id="sidebar" class="sidebar" aria-label="Navigation">
+        <div class="sidebar-header">
+            <a class="brand" href="/"><span class="brand-mark">✳</span><span>arbor</span></a>
+            <button type="button" id="sidebar-pin" class="icon-button sidebar-pin" aria-pressed="false" title="Seitenleiste fixieren" aria-label="Seitenleiste fixieren"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3-1-6zM12 15v6"/></svg></button>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="sidebar-section"><span>PROJEKTE</span><button type="button" id="add-project-button" class="sidebar-add" title="Neues Projekt" aria-label="Neues Projekt">＋</button></div>
+            <ul class="project-list">
+                @foreach (var project in projects)
+                {
+                    <li class="project-entry">
+                        <a href="/projekte/@project.Id" aria-current="@(project.Id == currentProject?.Id ? "page" : null)"><span class="project-mark" aria-hidden="true">@project.Name[..1].ToUpperInvariant()</span><span class="project-name">@project.Name</span></a>
+                        <button type="button" class="project-edit" data-id="@project.Id" data-name="@project.Name" title="Projekt bearbeiten" aria-label="Projekt „@project.Name“ bearbeiten">⋯</button>
+                    </li>
+                }
+            </ul>
+            <div class="sidebar-section"><span>ALLGEMEIN</span></div>
+            <a class="sidebar-link" href="/aufwaende" aria-current="@(page == "time" ? "page" : null)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Aufwände</span></a>
+            <a class="sidebar-link" href="/settings" aria-current="@(page == "settings" ? "page" : null)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Einstellungen</span></a>
+        </nav>
+    </aside>
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
     <div class="app-shell">
         <header class="topbar">
             <div class="topbar-left">
-                <a class="brand" href="/"><span class="brand-mark">✳</span><span>arbor</span><span class="brand-divider"></span><span class="workspace-name">Mein Workspace</span></a>
-                <nav class="main-nav" aria-label="Bereiche">
-                    <a href="/" aria-current="@(ViewData["Page"] as string == "workspace" ? "page" : null)">Aufgaben</a>
-                    <a href="/aufwaende" aria-current="@(ViewData["Page"] as string == "time" ? "page" : null)">Aufwände</a>
-                </nav>
+                <button type="button" id="sidebar-toggle" class="icon-button sidebar-toggle" aria-controls="sidebar" aria-expanded="false" title="Navigation ein- oder ausblenden" aria-label="Navigation ein- oder ausblenden"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+                <a class="brand topbar-brand" href="/"><span class="brand-mark">✳</span><span>arbor</span></a>
+                <span class="brand-divider"></span>
+                <span class="workspace-name">@(currentProject?.Name ?? ViewData["Title"])</span>
             </div>
             <div class="top-actions">
                 @await RenderSectionAsync("TopActions", required: false)
-                <a class="quiet-button" href="/settings" title="Einstellungen" aria-current="@(ViewData["Page"] as string == "settings" ? "page" : null)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Einstellungen</span></a>
             </div>
         </header>
         @RenderBody()
     </div>
+
+    <dialog id="project-dialog" class="modal narrow-modal" aria-labelledby="project-dialog-heading">
+        <form id="project-form">
+            <div class="modal-header"><div><span class="eyebrow">PROJEKT</span><h2 id="project-dialog-heading">Neues Projekt</h2></div><button type="button" class="icon-button dialog-close" data-dialog="project-dialog" aria-label="Schließen">✕</button></div>
+            <div class="modal-body">
+                <label class="form-label" for="project-name">Name</label>
+                <input id="project-name" maxlength="100" required autocomplete="off" placeholder="Zum Beispiel: Website-Relaunch" />
+                <p id="project-new-hint" class="helper-text">Ein neues Projekt hat eigene Aufgaben, Dokumente, Status, Felder und Ansichten. Es startet mit den Status „Offen“, „In Arbeit“ und „Erledigt“.</p>
+            </div>
+            <div class="modal-footer"><button type="button" id="delete-project-button" class="danger-button" hidden>Projekt löschen</button><div class="footer-spacer"></div><span id="project-form-error" class="form-error" role="alert"></span><button type="button" class="secondary-button dialog-close" data-dialog="project-dialog">Abbrechen</button><button type="submit" class="primary-button">Speichern</button></div>
+        </form>
+    </dialog>
+    <script type="module" src="~/js/sidebar.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

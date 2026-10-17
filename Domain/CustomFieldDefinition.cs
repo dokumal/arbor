@@ -5,6 +5,7 @@ public enum CustomFieldType { Text, Number, Date, Select, Boolean }
 public sealed class CustomFieldDefinition
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProjectId { get; set; }
     public string Name { get; set; } = "";
     public CustomFieldType Type { get; set; }
     // Select values store the option's id, so renaming an option needs no data changes.

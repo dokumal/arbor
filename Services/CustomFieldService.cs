@@ -5,14 +5,15 @@ using QuireClone.Domain;
 
 namespace QuireClone.Services;
 
-public sealed class CustomFieldService(AppDbContext db)
+public sealed class CustomFieldService(AppDbContext db, ProjectService projects)
 {
-    public async Task<Guid> CreateAsync(CustomFieldSaveRequest request, CancellationToken cancellationToken)
+    public async Task<Guid> CreateAsync(Guid projectId, CustomFieldSaveRequest request, CancellationToken cancellationToken)
     {
+        await projects.EnsureExistsAsync(projectId, cancellationToken);
         var name = request.Name.Trim();
         if (name.Length == 0) throw new DomainValidationException("Bitte einen Feldnamen eingeben.");
         if (!Enum.IsDefined(request.Type)) throw new DomainValidationException("Ungültiger Feldtyp.");
-        if (await db.CustomFields.AnyAsync(x => x.Name.ToLower() == name.ToLower(), cancellationToken))
+        if (await db.CustomFields.AnyAsync(x => x.ProjectId == projectId && x.Name.ToLower() == name.ToLower(), cancellationToken))
             throw new DomainValidationException("Ein Feld mit diesem Namen existiert bereits.");
         var options = request.Type == CustomFieldType.Select
             ? request.Options.Select(x => x.Trim()).Where(x => x.Length > 0).Distinct().ToList() : [];
@@ -23,9 +24,10 @@ public sealed class CustomFieldService(AppDbContext db)
 
         var field = new CustomFieldDefinition
         {
-            Name = name, Type = request.Type,
+            ProjectId = projectId, Name = name, Type = request.Type,
             Options = options.Select(x => new SelectOption(Guid.NewGuid(), x)).ToList(),
-            SortOrder = (await db.CustomFields.MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1
+            SortOrder = (await db.CustomFields.Where(x => x.ProjectId == projectId)
+                .MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1
         };
         db.CustomFields.Add(field);
         await db.SaveChangesAsync(cancellationToken);
@@ -64,7 +66,7 @@ public sealed class CustomFieldService(AppDbContext db)
         var field = await db.CustomFields.FindAsync([id], cancellationToken)
             ?? throw new EntityNotFoundException("Feld nicht gefunden.");
         var key = FieldKeys.ForCustomField(id);
-        foreach (var view in await db.ViewConfigurations.ToListAsync(cancellationToken))
+        foreach (var view in await db.ViewConfigurations.Where(x => x.ProjectId == field.ProjectId).ToListAsync(cancellationToken))
         {
             view.VisibleFields = view.VisibleFields.Where(x => x != key).ToList();
             view.Filters = view.Filters.Where(x => x.Field != key).ToList();

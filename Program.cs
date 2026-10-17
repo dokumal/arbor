@@ -12,6 +12,7 @@ builder.Services.AddSingleton(services =>
 // Options are built per request, so a changed database location applies to the next request.
 builder.Services.AddDbContext<AppDbContext>((services, options) =>
     options.UseSqlite(services.GetRequiredService<StorageSettings>().ConnectionString));
+builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<WorkspaceItemService>();
 builder.Services.AddScoped<ItemLinkService>();
 builder.Services.AddScoped<StatusService>();
@@ -35,7 +36,16 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseStaticFiles();
+// Scripts import each other as ES modules without a version in the URL, so browsers must revalidate them;
+// otherwise a cached module can survive an update. Unchanged files still come back as a cheap 304.
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        if (context.File.Name.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
+            context.Context.Response.Headers.CacheControl = "no-cache";
+    }
+});
 app.UseRouting();
 app.MapControllers();
 app.MapControllerRoute("default", "{controller=Workspace}/{action=Index}/{id?}");

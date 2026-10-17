@@ -5,17 +5,20 @@ using QuireClone.Domain;
 
 namespace QuireClone.Services;
 
-public sealed class ViewConfigurationService(AppDbContext db)
+public sealed class ViewConfigurationService(AppDbContext db, ProjectService projects)
 {
     private static readonly HashSet<string> Operators = ["equals", "notEquals", "contains", "isEmpty",
         "isNotEmpty", "before", "after", "greaterThan", "lessThan"];
 
-    public async Task<Guid> CreateAsync(ViewConfigurationSaveRequest request, CancellationToken cancellationToken)
+    public async Task<Guid> CreateAsync(Guid projectId, ViewConfigurationSaveRequest request, CancellationToken cancellationToken)
     {
-        await ValidateAsync(request, cancellationToken);
+        await projects.EnsureExistsAsync(projectId, cancellationToken);
+        await ValidateAsync(projectId, request, cancellationToken);
         var view = new ViewConfiguration
         {
-            SortOrder = (await db.ViewConfigurations.MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1
+            ProjectId = projectId,
+            SortOrder = (await db.ViewConfigurations.Where(x => x.ProjectId == projectId)
+                .MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1) + 1
         };
         Apply(view, request);
         db.ViewConfigurations.Add(view);
@@ -26,7 +29,7 @@ public sealed class ViewConfigurationService(AppDbContext db)
     public async Task UpdateAsync(Guid id, ViewConfigurationSaveRequest request, CancellationToken cancellationToken)
     {
         var view = await FindAsync(id, cancellationToken);
-        await ValidateAsync(request, cancellationToken);
+        await ValidateAsync(view.ProjectId, request, cancellationToken);
         Apply(view, request);
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -34,7 +37,7 @@ public sealed class ViewConfigurationService(AppDbContext db)
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         var view = await FindAsync(id, cancellationToken);
-        if (await db.ViewConfigurations.CountAsync(cancellationToken) == 1)
+        if (await db.ViewConfigurations.CountAsync(x => x.ProjectId == view.ProjectId, cancellationToken) == 1)
             throw new DomainValidationException("Die letzte Ansicht kann nicht gelöscht werden.");
         db.ViewConfigurations.Remove(view);
         await db.SaveChangesAsync(cancellationToken);
@@ -56,12 +59,13 @@ public sealed class ViewConfigurationService(AppDbContext db)
         view.HideCompleted = request.HideCompleted;
     }
 
-    private async Task ValidateAsync(ViewConfigurationSaveRequest request, CancellationToken cancellationToken)
+    private async Task ValidateAsync(Guid projectId, ViewConfigurationSaveRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name)) throw new DomainValidationException("Bitte einen Namen eingeben.");
         if (!Enum.IsDefined(request.Kind)) throw new DomainValidationException("Ungültige Darstellung.");
         if (request.Filters.Count > 20) throw new DomainValidationException("Maximal 20 Filter pro Ansicht.");
-        var fields = (await db.CustomFields.Select(x => x.Id).ToListAsync(cancellationToken))
+        // Only fields of the same project can be shown, filtered, grouped or sorted by.
+        var fields = (await db.CustomFields.Where(x => x.ProjectId == projectId).Select(x => x.Id).ToListAsync(cancellationToken))
             .Select(FieldKeys.ForCustomField).ToHashSet();
         fields.UnionWith(FieldKeys.BuiltIn);
         if (request.VisibleFields.Any(x => !fields.Contains(x)) ||

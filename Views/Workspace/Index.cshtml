@@ -1,8 +1,8 @@
 @{
-    ViewData["Title"] = "Workspace";
+    var project = (ProjectDto)ViewData["Project"]!;
+    ViewData["Title"] = project.Name;
     ViewData["Page"] = "workspace";
 }
-@Html.AntiForgeryToken()
 @section TopActions {
     <button class="quiet-button" id="field-manager-button" title="Status und eigene Felder verwalten"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Eigene Felder</span></button>
 }
@@ -10,13 +10,13 @@
     <script src="~/lib/suneditor/suneditor.min.js" asp-append-version="true"></script>
     <script type="module" src="~/js/app.js" asp-append-version="true"></script>
 }
-<main>
+<main data-project-id="@project.Id">
     <section class="page-heading">
-        <div><div class="eyebrow">WORKSPACE</div><h1>Aufgaben &amp; Dokumente</h1><p>Plane deine Arbeit und halte das zugehörige Wissen an einem Ort.</p></div>
-        <div class="page-meta"><span id="task-count">0 Aufgaben</span><span class="meta-dot"></span><span>Lokaler Workspace</span></div>
+        <div><div class="eyebrow">PROJEKT</div><h1>@project.Name</h1><p>Aufgaben &amp; Dokumente: Plane deine Arbeit und halte das zugehörige Wissen an einem Ort.</p></div>
+        <div class="page-meta"><span id="task-count">0 Aufgaben</span></div>
     </section>
     <section class="work-area" aria-label="Aufgabenansichten">
-        <div class="tabs-bar"><div id="view-tabs" class="view-tabs" role="tablist" aria-label="Darstellung"></div><div class="workspace-search"><label for="workspace-search">⌕</label><input id="workspace-search" type="search" aria-label="Workspace durchsuchen" placeholder="Einträge durchsuchen …" /></div></div>
+        <div class="tabs-bar"><div id="view-tabs" class="view-tabs" role="tablist" aria-label="Darstellung"></div><div class="workspace-search"><label for="workspace-search">⌕</label><input id="workspace-search" type="search" aria-label="Projekt durchsuchen" placeholder="Einträge durchsuchen …" /></div></div>
         <div class="config-bar">
             <span class="config-bar-label">KONFIGURATIONEN</span>
             <div id="config-tabs" class="config-tabs" role="tablist" aria-label="Gespeicherte Konfigurationen"></div>
@@ -78,7 +78,7 @@
 </dialog>
 
 <dialog id="field-dialog" class="modal narrow-modal" aria-labelledby="field-dialog-heading">
-    <div class="modal-header"><div><span class="eyebrow">WORKSPACE</span><h2 id="field-dialog-heading">Eigene Felder</h2></div><button type="button" class="icon-button dialog-close" data-dialog="field-dialog" aria-label="Schließen">✕</button></div>
+    <div class="modal-header"><div><span class="eyebrow">PROJEKT</span><h2 id="field-dialog-heading">Eigene Felder</h2></div><button type="button" class="icon-button dialog-close" data-dialog="field-dialog" aria-label="Schließen">✕</button></div>
     <div class="modal-body"><div id="field-list" class="field-list"></div><div class="section-heading"><h3>Neues Feld</h3></div><form id="field-form"><label class="form-label" for="field-name">Name</label><input id="field-name" maxlength="100" required placeholder="Zum Beispiel: Kunde" /><label class="form-label" for="field-type">Typ</label><select id="field-type"><option value="Text">Text</option><option value="Select">Auswahl</option><option value="Number">Zahl</option><option value="Date">Datum</option><option value="Boolean">Ja / Nein</option></select><div id="field-options-wrap" hidden><span class="form-label">Optionen</span><div id="field-options"></div></div><div class="inline-submit"><span id="field-form-error" class="form-error"></span><button type="submit" class="primary-button">Feld erstellen</button></div></form></div>
 </dialog>
 
