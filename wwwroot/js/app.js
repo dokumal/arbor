@@ -127,11 +127,20 @@ async function saveInlineField(input) {
     }
 }
 
-function notify(message) {
+// An optional action ({ label, run }) adds a button to the toast and keeps it a little longer.
+function notify(message, action = null) {
     clearTimeout(toastTimer);
     $('toast').textContent = message;
+    if (action) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'toast-action';
+        button.textContent = action.label;
+        button.addEventListener('click', () => { $('toast').hidden = true; action.run(); }, { once: true });
+        $('toast').append(button);
+    }
     $('toast').hidden = false;
-    toastTimer = setTimeout(() => $('toast').hidden = true, 3000);
+    toastTimer = setTimeout(() => $('toast').hidden = true, action ? 8000 : 3000);
 }
 
 function showError(id, error) { $(id).textContent = error?.message || String(error); }
@@ -259,11 +268,25 @@ async function saveTask(event) {
     } catch (error) { showError('task-form-error', error); }
 }
 
+// Deleting moves the entry with everything below it into the trash, so it needs no confirmation; the toast can undo it.
 async function deleteTask() {
     const id = $('task-id').value;
-    if (!id || !confirm('Diesen Eintrag samt allen untergeordneten Ordnern, Aufgaben und Dokumenten wirklich löschen?')) return;
-    try { await api(`/api/items/${id}`, { method: 'DELETE' }); closeTask(); await loadWorkspace(); notify('Eintrag gelöscht.'); }
+    if (!id) return;
+    try {
+        await api(`/api/items/${id}`, { method: 'DELETE' });
+        closeTask();
+        await loadWorkspace();
+        notify('In den Papierkorb verschoben.', { label: 'Rückgängig', run: () => restoreItem(id) });
+    }
     catch (error) { showError('task-form-error', error); }
+}
+
+async function restoreItem(id) {
+    try {
+        const { message } = await api(`/api/trash/${id}/restore`, { method: 'POST' });
+        await loadWorkspace();
+        notify(message);
+    } catch (error) { notify(error.message); }
 }
 
 const builtinFields = [

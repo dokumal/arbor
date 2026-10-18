@@ -15,6 +15,7 @@ builder.Services.AddDbContext<AppDbContext>((services, options) =>
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<WorkspaceItemService>();
 builder.Services.AddScoped<ItemLinkService>();
+builder.Services.AddScoped<TrashService>();
 builder.Services.AddScoped<StatusService>();
 builder.Services.AddScoped<CustomFieldService>();
 builder.Services.AddScoped<ViewConfigurationService>();

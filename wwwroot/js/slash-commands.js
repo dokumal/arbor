@@ -20,6 +20,7 @@ function commandList(pickImage) {
         block('Überschrift 3', 'Kleine Überschrift', 'h3 heading', chain => chain.setHeading({ level: 3 })),
         block('Aufzählung', 'Liste mit Punkten', 'liste bullet ul punkte', chain => chain.toggleBulletList()),
         block('Nummerierte Liste', 'Liste mit Zahlen', 'liste ordered ol nummern', chain => chain.toggleOrderedList()),
+        block('Checkliste', 'Liste mit Kästchen zum Abhaken', 'checkbox todo aufgaben haken task', chain => chain.toggleTaskList()),
         { ...block('Tabelle', '3 × 3 mit Kopfzeile', 'table raster', chain => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true })), outsideTable: true },
         block('Bild', 'Datei hochladen', 'image foto grafik upload', chain => { chain.run(); pickImage(); return null; })
     ];

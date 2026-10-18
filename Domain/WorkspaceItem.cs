@@ -21,4 +21,8 @@ public sealed class WorkspaceItem
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<ItemFieldValue> FieldValues { get; set; } = [];
+    // Set while the item is in the trash. Every item of a deleted subtree carries the id of the item that was
+    // deleted, so restoring that item brings back exactly what went into the trash with it.
+    public DateTimeOffset? DeletedAt { get; set; }
+    public Guid? DeletedWithId { get; set; }
 }

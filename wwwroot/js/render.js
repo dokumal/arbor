@@ -52,6 +52,25 @@ export function descriptionText(value) {
     return decoder.value.replace(/\s+/g, ' ').trim();
 }
 
+// How many checkboxes of the checklists in a description are ticked, or null without a checklist.
+export function checklistProgress(description) {
+    const items = description?.match(/<li\b[^>]*\bdata-type="taskItem"[^>]*>/g);
+    if (!items) return null;
+    return { done: items.filter(tag => /\bdata-checked="true"/.test(tag)).length, total: items.length };
+}
+
+const checklistIcon = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"/><path d="M4.8 8.2l2.2 2.2 4.2-4.6"/></svg>';
+function checklistBadge(item) {
+    const progress = checklistProgress(item.description);
+    if (!progress) return '';
+    const label = `Checkliste: ${progress.done} von ${progress.total} erledigt`;
+    return `<span class="checklist-progress${progress.done === progress.total ? ' complete' : ''}" title="${label}" aria-label="${label}">${checklistIcon}${progress.done}/${progress.total}</span>`;
+}
+const checklistText = item => {
+    const progress = checklistProgress(item.description);
+    return progress ? `☑ ${progress.done}/${progress.total}` : '';
+};
+
 export function formatDate(value, options = { day: '2-digit', month: 'short', year: 'numeric' }) {
     if (!value) return '';
     return new Intl.DateTimeFormat('de-DE', { timeZone: 'UTC', ...options }).format(new Date(`${value}T00:00:00Z`));
@@ -217,7 +236,7 @@ function renderTree(allTasks, matching, view, definitions, expanded, selectedId,
             const chevron = subs.length
                 ? `<button class="tree-chevron" data-action="toggle" data-id="${task.id}" aria-label="Untergeordnete Einträge ${expanded.has(task.id) ? 'einklappen' : 'ausklappen'}">${expanded.has(task.id) ? '▾' : '▸'}</button>`
                 : '<span class="chevron-spacer"></span>';
-            rows.push(`<div class="task-row ${isFolder(task) ? 'folder-row' : isDocument(task) ? 'document-row' : ''} ${matching.has(task.id) ? '' : 'context-row'} ${selectedId === task.id ? 'selected' : ''}" style="${grid}" data-action="open-task" data-id="${task.id}" data-depth="${depth}"><div class="tree-title" style="padding-left:${Math.min(depth, 12) * 22}px"><button type="button" class="tree-drag-handle" draggable="true" data-tree-drag="${task.id}" title="Eintrag verschieben" aria-label="${escapeHtml(task.title)} verschieben">⠿</button>${chevron}${itemSymbol(task)}<span class="tree-title-text">${escapeHtml(task.title)}</span></div>${columns.map(key => renderTreeCell(task, key, definitions)).join('')}${rowCreateActions(task)}</div>`);
+            rows.push(`<div class="task-row ${isFolder(task) ? 'folder-row' : isDocument(task) ? 'document-row' : ''} ${matching.has(task.id) ? '' : 'context-row'} ${selectedId === task.id ? 'selected' : ''}" style="${grid}" data-action="open-task" data-id="${task.id}" data-depth="${depth}"><div class="tree-title" style="padding-left:${Math.min(depth, 12) * 22}px"><button type="button" class="tree-drag-handle" draggable="true" data-tree-drag="${task.id}" title="Eintrag verschieben" aria-label="${escapeHtml(task.title)} verschieben">⠿</button>${chevron}${itemSymbol(task)}<span class="tree-title-text">${escapeHtml(task.title)}</span>${checklistBadge(task)}</div>${columns.map(key => renderTreeCell(task, key, definitions)).join('')}${rowCreateActions(task)}</div>`);
             if (expanded.has(task.id)) subs.forEach(child => walk(child, depth + 1));
         };
         (children.get(null) || []).forEach(task => walk(task, 0));
@@ -254,7 +273,7 @@ function renderKanbanBoard(tasks, view, definitions, groupKey, columnStatuses = 
     const addStatus = groupKey === null ? '<button type="button" class="add-status-column" data-action="add-status" title="Neuen Status als Spalte hinzufügen" aria-haspopup="dialog">＋ Status</button>' : '';
     return `<div class="kanban-board ${columnStatuses.length === 1 ? 'single-status' : ''} ${addStatus ? 'with-add-status' : ''}" style="--columns:${columnStatuses.length}">${columnStatuses.map(status => {
         const columnTasks = tasks.filter(task => task.statusId === status.id);
-        return `<section class="kanban-column" data-status="${status.id}"${groupAttribute}><div class="column-heading"><button type="button" class="column-heading-button" data-action="status-menu" data-status-id="${status.id}" title="Status bearbeiten" aria-haspopup="dialog">${statusDot(status)}<span class="column-name">${escapeHtml(status.name)}</span><span class="column-menu-hint" aria-hidden="true">⋯</span></button><span class="column-count">${columnTasks.length}</span></div><div class="column-body">${columnTasks.map(task => `<article class="kanban-card" draggable="true" data-action="open-task" data-id="${task.id}"${groupAttribute}><div class="card-title">${escapeHtml(task.title)}</div>${view.visibleFields.includes('description') && task.description ? `<p class="card-description">${escapeHtml(descriptionText(task.description))}</p>` : ''}<div class="card-meta">${view.visibleFields.filter(key => !['title', 'status', 'description'].includes(key)).map(key => fieldValue(task, key, definitions) ? `<span${key === 'dueDate' && dueState(task) ? ` class="due-${dueState(task)}"` : ''}>${escapeHtml(fieldLabel(key, definitions))}: ${escapeHtml(fieldValue(task, key, definitions))}</span>` : '').join('')}</div>${documentRefs(task)}</article>`).join('')}${groupKey === null || view.groupByField === 'status' ? `<button class="add-column-task" data-action="new-task" data-status-id="${status.id}">＋ Aufgabe hinzufügen</button>` : ''}</div></section>`;
+        return `<section class="kanban-column" data-status="${status.id}"${groupAttribute}><div class="column-heading"><button type="button" class="column-heading-button" data-action="status-menu" data-status-id="${status.id}" title="Status bearbeiten" aria-haspopup="dialog">${statusDot(status)}<span class="column-name">${escapeHtml(status.name)}</span><span class="column-menu-hint" aria-hidden="true">⋯</span></button><span class="column-count">${columnTasks.length}</span></div><div class="column-body">${columnTasks.map(task => `<article class="kanban-card" draggable="true" data-action="open-task" data-id="${task.id}"${groupAttribute}><div class="card-title">${escapeHtml(task.title)}</div>${view.visibleFields.includes('description') && task.description ? `<p class="card-description">${escapeHtml(descriptionText(task.description))}</p>` : ''}<div class="card-meta">${checklistBadge(task)}${view.visibleFields.filter(key => !['title', 'status', 'description'].includes(key)).map(key => fieldValue(task, key, definitions) ? `<span${key === 'dueDate' && dueState(task) ? ` class="due-${dueState(task)}"` : ''}>${escapeHtml(fieldLabel(key, definitions))}: ${escapeHtml(fieldValue(task, key, definitions))}</span>` : '').join('')}</div>${documentRefs(task)}</article>`).join('')}${groupKey === null || view.groupByField === 'status' ? `<button class="add-column-task" data-action="new-task" data-status-id="${status.id}">＋ Aufgabe hinzufügen</button>` : ''}</div></section>`;
     }).join('')}${addStatus}</div>`;
 }
 
@@ -305,6 +324,7 @@ function renderCalendar(tasks, view, definitions, monthValue) {
             laneEnds[lane] = item.lastColumn;
             const details = view.visibleFields.filter(key => !['title', 'startDate', 'dueDate'].includes(key))
                 .map(key => fieldValue(item.task, key, definitions)).filter(Boolean);
+            if (checklistText(item.task)) details.push(checklistText(item.task));
             if (item.task.relatedDocuments.length) details.push(`📄 ${item.task.relatedDocuments.length}`);
             const tooltip = [item.task.title, `${formatDate(new Date(item.from).toISOString().slice(0, 10))} – ${formatDate(new Date(item.to).toISOString().slice(0, 10))}`, ...details,
                 ...item.task.relatedDocuments.map(doc => `Dokument: ${doc.title}`)].join(' · ');
@@ -338,6 +358,7 @@ function renderTimeline(tasks, view, definitions, anchor, interval, collapsed) {
         }
         const extras = view.visibleFields.filter(key => key !== 'title').map(key => fieldValue(task, key, definitions)).filter(Boolean);
         if (task.relatedDocuments.length) extras.unshift(`📄 ${task.relatedDocuments.length} ${task.relatedDocuments.length === 1 ? 'Dokument' : 'Dokumente'}`);
+        if (checklistText(task)) extras.unshift(checklistText(task));
         return `<div class="timeline-row"><div class="timeline-label" data-action="open-task" data-id="${task.id}" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}${extras.length ? `<span class="cell-muted"> · ${escapeHtml(extras.join(', '))}</span>` : ''}</div><div class="timeline-track">${bar}</div></div>`;
     }).join('');
     const groups = groupTasks(tasks, view, definitions);

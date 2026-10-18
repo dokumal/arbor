@@ -139,3 +139,10 @@ public sealed class ProjectSaveRequest
     [Required, StringLength(100, MinimumLength = 1)]
     public string Name { get; set; } = "";
 }
+
+// Location holds the titles from the top level down to the former parent. ContainedCount counts the items
+// that went into the trash together with the entry.
+public sealed record TrashEntryDto(Guid Id, Guid ProjectId, string ProjectName, WorkspaceItemKind Kind, string Title,
+    DateTimeOffset DeletedAt, int ContainedCount, List<string> Location, bool ParentInTrash);
+
+public sealed record TrashRestoreResultDto(Guid ProjectId, string Message);

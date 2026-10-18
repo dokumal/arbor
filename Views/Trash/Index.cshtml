@@ -1,0 +1,16 @@
+@{
+    ViewData["Title"] = "Papierkorb";
+    ViewData["Page"] = "trash";
+}
+@section Scripts {
+    <script type="module" src="~/js/trash.js" asp-append-version="true"></script>
+}
+<main class="trash-page">
+    <a class="back-link" href="/">← Zurück zum Projekt</a>
+    <section class="page-heading">
+        <div><div class="eyebrow">PAPIERKORB</div><h1>Gelöschte Einträge</h1><p>Gelöschte Ordner, Aufgaben und Dokumente bleiben hier mit allen untergeordneten Einträgen, bis du sie wiederherstellst oder endgültig löschst.</p></div>
+        <button type="button" id="empty-trash-button" class="danger-button" hidden>Papierkorb leeren</button>
+    </section>
+    <p id="trash-status" class="trash-status" role="status" aria-live="polite" hidden></p>
+    <div id="trash-content"><div class="loading">Papierkorb wird geladen …</div></div>
+</main>

@@ -44,6 +44,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .HasConstraintName("FK_Tasks_Tasks_ParentTaskId");
             entity.HasIndex(x => new { x.ParentId, x.SortOrder }).HasDatabaseName("IX_Tasks_ParentTaskId_SortOrder");
             entity.HasIndex(x => x.DueDate);
+            // Items in the trash are invisible to every query; TrashService and operations on whole projects,
+            // statuses or select options opt out with IgnoreQueryFilters.
+            entity.HasQueryFilter(x => x.DeletedAt == null);
+            entity.HasIndex(x => x.DeletedWithId);
         });
 
         modelBuilder.Entity<TaskStatusDefinition>(entity =>
@@ -75,6 +79,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasOne(x => x.Field).WithMany(x => x.Values)
                 .HasForeignKey(x => x.FieldId).OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(x => new { x.FieldId, x.Value });
+            // Values and links of items in the trash are kept for the restore, but hidden like their items.
+            entity.HasQueryFilter(x => x.Item.DeletedAt == null);
         });
 
         modelBuilder.Entity<ItemLink>(entity =>
@@ -82,6 +88,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasKey(x => new { x.TaskId, x.DocumentId });
             entity.HasOne(x => x.Task).WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasQueryFilter(x => x.Task.DeletedAt == null && x.Document.DeletedAt == null);
         });
 
         modelBuilder.Entity<ViewConfiguration>(entity =>

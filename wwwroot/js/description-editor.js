@@ -1,4 +1,4 @@
-import { Editor, Image, Placeholder, StarterKit, TableKit } from '../lib/tiptap/tiptap.js';
+import { Editor, Image, Placeholder, StarterKit, TableKit, TaskItem, TaskList } from '../lib/tiptap/tiptap.js';
 import { api } from './api.js?v=problem-details';
 import { escapeHtml } from './render.js?v=statuses';
 import { SlashCommands } from './slash-commands.js';
@@ -56,6 +56,9 @@ export function setDescription(value) {
         extensions: [
             StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false } }),
             Image,
+            // Checklists; the views show their progress (see checklistProgress in render.js).
+            TaskList,
+            TaskItem.configure({ nested: true, a11y: { checkboxLabel: node => `Abhaken: ${node.textContent || 'leerer Punkt'}` } }),
             TableKit.configure({ table: { resizable: true } }),
             Placeholder.configure({ placeholder: 'Details, Notizen und nächste Schritte … Tippe „/“ für Befehle.' }),
             SlashCommands(pickImage)

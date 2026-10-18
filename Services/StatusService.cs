@@ -71,7 +71,8 @@ public sealed class StatusService(AppDbContext db, ProjectService projects)
                 ? saved.FirstOrDefault(x => x.Id == replacementId && kept.Contains(x.Id))
                     ?? throw new DomainValidationException($"Der Ersatz für „{status.Name}“ muss ein bestehender Status sein.")
                 : saved.First(x => x.Category == status.Category);
-            foreach (var task in await db.Items.Where(x => x.StatusId == status.Id).ToListAsync(cancellationToken))
+            // Tasks in the trash move as well, so they still have a valid status when restored.
+            foreach (var task in await db.Items.IgnoreQueryFilters().Where(x => x.StatusId == status.Id).ToListAsync(cancellationToken))
             {
                 task.StatusId = replacement.Id;
                 task.UpdatedAt = DateTimeOffset.UtcNow;

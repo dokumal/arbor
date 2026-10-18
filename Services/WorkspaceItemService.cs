@@ -167,12 +167,6 @@ public sealed class WorkspaceItemService(AppDbContext db, StatusService statuses
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
-    {
-        db.Items.Remove(await FindAsync(id, cancellationToken));
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
     private async Task<WorkspaceItem> FindAsync(Guid id, CancellationToken cancellationToken) =>
         await db.Items.FindAsync([id], cancellationToken) ?? throw new EntityNotFoundException("Eintrag nicht gefunden.");
 

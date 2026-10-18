@@ -6,7 +6,7 @@ namespace QuireClone.Controllers;
 
 [ApiController]
 [Route("api")]
-public sealed class WorkspaceItemsController(WorkspaceItemService items) : ControllerBase
+public sealed class WorkspaceItemsController(WorkspaceItemService items, TrashService trash) : ControllerBase
 {
     [HttpPost("projects/{projectId:guid}/items")]
     public async Task<IActionResult> Create(Guid projectId, ItemSaveRequest request, CancellationToken cancellationToken)
@@ -22,10 +22,11 @@ public sealed class WorkspaceItemsController(WorkspaceItemService items) : Contr
         return NoContent();
     }
 
+    // Deleting moves the item with everything below it into the trash.
     [HttpDelete("items/{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        await items.DeleteAsync(id, cancellationToken);
+        await trash.MoveToTrashAsync(id, cancellationToken);
         return NoContent();
     }
 

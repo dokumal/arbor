@@ -2,6 +2,7 @@
 export { Editor, Extension } from '@tiptap/core';
 export { StarterKit } from '@tiptap/starter-kit';
 export { Image } from '@tiptap/extension-image';
+export { TaskItem, TaskList } from '@tiptap/extension-list';
 export { TableKit } from '@tiptap/extension-table';
 export { Placeholder } from '@tiptap/extensions';
 export { Suggestion } from '@tiptap/suggestion';

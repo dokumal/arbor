@@ -53,8 +53,9 @@ public sealed class CustomFieldService(AppDbContext db, ProjectService projects)
             throw new DomainValidationException("Die Optionen wurden inzwischen geändert. Bitte lade die Seite neu.");
 
         var removed = field.Options.Select(x => x.Id).Except(kept).Select(x => x.ToString()).ToList();
+        // Items in the trash lose the value as well, so a restored item never refers to a removed option.
         if (removed.Count > 0)
-            db.ItemFieldValues.RemoveRange(await db.ItemFieldValues
+            db.ItemFieldValues.RemoveRange(await db.ItemFieldValues.IgnoreQueryFilters()
                 .Where(x => x.FieldId == id && removed.Contains(x.Value)).ToListAsync(cancellationToken));
         field.Options = changes.Select(x => new SelectOption(x.Id ?? Guid.NewGuid(), x.Name)).ToList();
         await db.SaveChangesAsync(cancellationToken);
