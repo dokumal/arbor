@@ -404,6 +404,12 @@ select.inline-field:focus{cursor:pointer}
 .table-toolbar button:hover:not(:disabled){background:var(--accent-soft);color:var(--accent-text)}
 .table-toolbar button.danger:hover:not(:disabled){background:var(--danger-soft);color:var(--danger)}
 .table-toolbar button:disabled{opacity:.4;cursor:default}
+.format-menu{position:absolute;top:0;left:0;z-index:3;display:flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:0 6px 20px #0f241a26;padding:3px}
+.format-menu-group{display:flex;align-items:center;gap:1px}
+.format-menu-group+.format-menu-group{border-left:1px solid var(--border);padding-left:4px}
+.format-menu button{min-width:28px;border:0;background:none;border-radius:5px;padding:4px 7px;font-size:13px;font-weight:550;line-height:1.2;color:var(--text-2);white-space:nowrap}
+.format-menu button:hover{background:var(--accent-soft);color:var(--accent-text)}
+.format-menu button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent-text)}
 .slash-menu{position:fixed;z-index:50;width:260px;max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 12px 36px #0f241a33;padding:5px}
 .slash-group{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text-4);padding:7px 9px 3px}
 .slash-item{display:flex;flex-direction:column;align-items:flex-start;width:100%;border:0;background:none;border-radius:var(--radius-sm);padding:6px 9px;text-align:left;color:var(--text);font-size:13px;font-weight:550}

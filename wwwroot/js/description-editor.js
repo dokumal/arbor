@@ -2,6 +2,7 @@ import { Editor, Image, Placeholder, StarterKit, TableKit, TaskItem, TaskList } 
 import { api } from './api.js?v=problem-details';
 import { escapeHtml } from './render.js?v=statuses';
 import { SlashCommands } from './slash-commands.js';
+import { FormatMenu } from './format-menu.js';
 import { attachTableToolbar } from './table-toolbar.js';
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -61,7 +62,8 @@ export function setDescription(value) {
             TaskItem.configure({ nested: true, a11y: { checkboxLabel: node => `Abhaken: ${node.textContent || 'leerer Punkt'}` } }),
             TableKit.configure({ table: { resizable: true } }),
             Placeholder.configure({ placeholder: 'Details, Notizen und nächste Schritte … Tippe „/“ für Befehle.' }),
-            SlashCommands(pickImage)
+            SlashCommands(pickImage),
+            FormatMenu()
         ],
         editorProps: {
             attributes: { class: 'rich-text', 'aria-labelledby': 'item-content-label', 'aria-multiline': 'true', role: 'textbox' },
