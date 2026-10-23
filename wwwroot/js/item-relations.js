@@ -5,19 +5,15 @@ export const isTask = item => item?.kind === 'Task';
 export const itemIcon = item => isFolder(item) ? '📁' : isDocument(item) ? '📄' : '☐';
 export const canContain = (parentKind, childKind) => childKind !== 'Folder' || parentKind === 'Folder';
 
-// Tree placement and explicit references are independent; show each related item once.
-export function relatedItems(items, links, id) {
+// Related items come from the tree alone: the nearest ancestor of the other kind, and the descendants
+// of the other kind reached through items of the same kind. Folders end the search.
+export function relatedItems(items, id) {
     const byId = new Map(items.map(item => [item.id, item]));
     const current = byId.get(id);
     if (!current || isFolder(current)) return [];
     const relatedKind = isTask(current) ? 'Document' : 'Task';
-    const related = new Map();
-    const add = (item, explicit = false) => {
-        if (!item || item.kind !== relatedKind) return;
-        const previous = related.get(item.id);
-        related.set(item.id, { item, explicit: explicit || previous?.explicit || false,
-            inTree: !explicit || previous?.inTree || false });
-    };
+    const related = [];
+    const add = item => { if (item.kind === relatedKind) related.push(item); };
     const visited = new Set([id]);
     let ancestor = byId.get(current.parentId);
     while (ancestor && !visited.has(ancestor.id)) {
@@ -36,9 +32,5 @@ export function relatedItems(items, links, id) {
         }
     };
     walk(id);
-    for (const link of links) {
-        if (link.taskId === id) add(byId.get(link.documentId), true);
-        if (link.documentId === id) add(byId.get(link.taskId), true);
-    }
-    return [...related.values()].sort((a, b) => a.item.title.localeCompare(b.item.title, 'de'));
+    return related.sort((a, b) => a.title.localeCompare(b.title, 'de'));
 }

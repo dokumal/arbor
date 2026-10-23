@@ -128,7 +128,7 @@ public sealed class TrashService(AppDbContext db)
         if (separate.Count > 0)
             await AllItems.Where(x => separate.Contains(x.Id))
                 .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.ParentId, item.ParentId), cancellationToken);
-        // The database cascade removes the descendants with their field values and links.
+        // The database cascade removes the descendants with their field values.
         await AllItems.Where(x => x.Id == id).ExecuteDeleteAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }

@@ -17,11 +17,8 @@ public sealed record ViewConfigurationDto(Guid Id, string Name, ViewKind Kind,
     List<ViewFilter> Filters, List<string> VisibleFields, string? GroupByField, string? SortField,
     bool SortDescending, bool HideCompleted, int SortOrder);
 
-public sealed record ItemLinkDto(Guid TaskId, Guid DocumentId);
-
 public sealed record WorkspaceDto(List<WorkspaceItemDto> Items, List<Guid> MatchingItemIds,
-    List<TaskStatusDto> Statuses, List<CustomFieldDto> CustomFields, List<ViewConfigurationDto> Views,
-    List<ItemLinkDto> Links);
+    List<TaskStatusDto> Statuses, List<CustomFieldDto> CustomFields, List<ViewConfigurationDto> Views);
 
 public sealed class ItemSaveRequest
 {
@@ -73,11 +70,6 @@ public sealed class TaskMoveRequest
 {
     public Guid? ParentId { get; set; }
     public Guid? BeforeTaskId { get; set; }
-}
-
-public sealed class ItemLinkRequest
-{
-    public Guid RelatedItemId { get; set; }
 }
 
 public sealed class CustomFieldSaveRequest

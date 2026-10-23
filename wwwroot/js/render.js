@@ -194,7 +194,7 @@ export function renderView(data, view, ui) {
     const matching = new Set(data.matchingItemIds);
     const matchingItems = data.items.filter(task => matching.has(task.id));
     const tasks = sortItems(matchingItems.filter(isTask), view, data.customFields).map(task => ({ ...task,
-        relatedDocuments: relatedItems(data.items, data.links, task.id).map(relation => relation.item) }));
+        relatedDocuments: relatedItems(data.items, task.id) }));
     const filtered = view.filters.length > 0 || view.hideCompleted || !!data.searchQuery;
     if (!matchingItems.length && view.kind !== 'Timeline')
         return empty(filtered) + (view.kind === 'Tree' && filtered ? quickAdd(view, data.customFields) : '');

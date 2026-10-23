@@ -7,7 +7,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 {
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<WorkspaceItem> Items => Set<WorkspaceItem>();
-    public DbSet<ItemLink> ItemLinks => Set<ItemLink>();
     public DbSet<TaskStatusDefinition> Statuses => Set<TaskStatusDefinition>();
     public DbSet<CustomFieldDefinition> CustomFields => Set<CustomFieldDefinition>();
     public DbSet<ItemFieldValue> ItemFieldValues => Set<ItemFieldValue>();
@@ -79,16 +78,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasOne(x => x.Field).WithMany(x => x.Values)
                 .HasForeignKey(x => x.FieldId).OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(x => new { x.FieldId, x.Value });
-            // Values and links of items in the trash are kept for the restore, but hidden like their items.
+            // Values of items in the trash are kept for the restore, but hidden like their items.
             entity.HasQueryFilter(x => x.Item.DeletedAt == null);
-        });
-
-        modelBuilder.Entity<ItemLink>(entity =>
-        {
-            entity.HasKey(x => new { x.TaskId, x.DocumentId });
-            entity.HasOne(x => x.Task).WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasQueryFilter(x => x.Task.DeletedAt == null && x.Document.DeletedAt == null);
         });
 
         modelBuilder.Entity<ViewConfiguration>(entity =>

@@ -72,21 +72,6 @@ namespace QuireClone.Data.Migrations
                     b.ToTable("TaskFieldValues", (string)null);
                 });
 
-            modelBuilder.Entity("QuireClone.Domain.ItemLink", b =>
-                {
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("DocumentId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("TaskId", "DocumentId");
-
-                    b.HasIndex("DocumentId");
-
-                    b.ToTable("ItemLinks");
-                });
-
             modelBuilder.Entity("QuireClone.Domain.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -327,25 +312,6 @@ namespace QuireClone.Data.Migrations
                     b.Navigation("Field");
 
                     b.Navigation("Item");
-                });
-
-            modelBuilder.Entity("QuireClone.Domain.ItemLink", b =>
-                {
-                    b.HasOne("QuireClone.Domain.WorkspaceItem", "Document")
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("QuireClone.Domain.WorkspaceItem", "Task")
-                        .WithMany()
-                        .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Document");
-
-                    b.Navigation("Task");
                 });
 
             modelBuilder.Entity("QuireClone.Domain.TaskStatusDefinition", b =>

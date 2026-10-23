@@ -7,7 +7,6 @@ import { initializeTreeDrag } from './tree-drag.js?v=folders';
 import { initializeTimelineDrag } from './timeline-drag.js';
 import { timelineIntervals, shiftTimelineDate } from './timeline-range.js';
 import { isDocument, isFolder, isTask, canContain, itemIcon, itemKinds } from './item-relations.js?v=folders';
-import { initializeItemLinks } from './item-links.js?v=statuses';
 import { initializeOptionEditors, readOptions, renderOptionEditor } from './option-editor.js?v=statuses';
 import { prefilledItem, prefilledKeys, viewPrefill } from './view-prefill.js?v=statuses';
 import { allStatuses, categoryFilterLabels, categoryFilterPrefix, defaultStatusId, firstStatusId, isCompleted, saveStatusList, setStatuses, statusById, statusCategories, statusName } from './statuses.js';
@@ -28,7 +27,7 @@ const ui = {
     timelineInterval: Object.hasOwn(timelineIntervals, savedTimelineInterval) ? savedTimelineInterval : 'Month',
     editingViewId: null, search: ''
 };
-let workspace = { items: [], matchingItemIds: [], statuses: [], customFields: [], views: [], links: [] };
+let workspace = { items: [], matchingItemIds: [], statuses: [], customFields: [], views: [] };
 let dragTaskId = null;
 let dragGroupKey = null;
 let editingFieldId = null;
@@ -36,7 +35,6 @@ let toastTimer;
 
 const currentView = () => workspace.views.find(view => view.id === ui.viewId && view.kind === ui.kind) || null;
 const taskById = id => workspace.items.find(task => task.id === id);
-const itemLinks = initializeItemLinks(() => workspace, () => loadWorkspace(), notify);
 const statusMenu = initializeStatusMenu({ items: () => workspace.items, reload: () => loadWorkspace(), notify, manageStatuses: () => openFieldDialog({ editStatuses: true }) });
 initializeTreeDrag($('view-content'), () => workspace.items, async (id, move) => {
     try {
@@ -224,7 +222,6 @@ function openTask(id = null, options = {}) {
     $('task-children-section').hidden = !task;
     $('add-child-folder-button').hidden = !folder;
     $('task-children').innerHTML = children.map(child => `<button type="button" class="child-link" data-action="open-task" data-id="${child.id}">${itemIcon(child)} ${escapeHtml(child.title)}${isTask(child) ? `<span class="related-status">${escapeHtml(statusName(child.statusId))}</span>` : ''}</button>`).join('') || '<p class="helper-text">Noch keine untergeordneten Einträge.</p>';
-    itemLinks.render(task?.id || null);
     ui.selectedTaskId = task?.id || null;
     $('drawer-backdrop').hidden = false;
     $('task-drawer').hidden = false;

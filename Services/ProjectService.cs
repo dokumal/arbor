@@ -62,7 +62,7 @@ public sealed class ProjectService(AppDbContext db)
             throw new DomainValidationException("Das letzte Projekt kann nicht gelöscht werden.");
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        // Items first, including those in the trash: their children, field values and links go with them,
+        // Items first, including those in the trash: their children and field values go with them,
         // and afterwards no item refers to a status.
         await db.Items.IgnoreQueryFilters().Where(x => x.ProjectId == id).ExecuteDeleteAsync(cancellationToken);
         await db.Statuses.Where(x => x.ProjectId == id).ExecuteDeleteAsync(cancellationToken);

@@ -15,9 +15,4 @@ public static class ItemKindRules
     // Folders can only be placed at the top level or inside other folders.
     public static bool CanContain(WorkspaceItemKind? parentKind, WorkspaceItemKind childKind) =>
         childKind != WorkspaceItemKind.Folder || parentKind is null or WorkspaceItemKind.Folder;
-
-    // An explicit link always connects a task with a document.
-    public static bool CanLink(WorkspaceItemKind first, WorkspaceItemKind second) =>
-        (first, second) is (WorkspaceItemKind.Task, WorkspaceItemKind.Document)
-            or (WorkspaceItemKind.Document, WorkspaceItemKind.Task);
 }

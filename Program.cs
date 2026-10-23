@@ -14,7 +14,6 @@ builder.Services.AddDbContext<AppDbContext>((services, options) =>
     options.UseSqlite(services.GetRequiredService<StorageSettings>().ConnectionString));
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<WorkspaceItemService>();
-builder.Services.AddScoped<ItemLinkService>();
 builder.Services.AddScoped<TrashService>();
 builder.Services.AddScoped<StatusService>();
 builder.Services.AddScoped<CustomFieldService>();

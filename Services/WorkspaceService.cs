@@ -24,7 +24,6 @@ public sealed partial class WorkspaceService(AppDbContext db, StatusService stat
         var selectedView = viewId is null ? views.FirstOrDefault() : views.FirstOrDefault(x => x.Id == viewId);
         var activeFilters = selectedView?.Filters ?? [];
 
-        var links = await db.ItemLinks.AsNoTracking().Where(x => x.Task.ProjectId == projectId).ToListAsync(cancellationToken);
         var itemDtos = items.Select(x => new WorkspaceItemDto(x.Id, x.Kind, x.Title, x.Description,
             x.ParentId, x.StatusId, x.StartDate, x.DueDate, x.SortOrder,
             x.UpdatedAt, x.FieldValues.ToDictionary(v => v.FieldId, v => v.Value))).ToList();
@@ -37,8 +36,7 @@ public sealed partial class WorkspaceService(AppDbContext db, StatusService stat
             statuses.Select(x => new TaskStatusDto(x.Id, x.Name, x.Category, x.Color, x.SortOrder)).ToList(),
             fields.Select(x => new CustomFieldDto(x.Id, x.Name, x.Type, x.Options, x.SortOrder)).ToList(),
             views.Select(x => new ViewConfigurationDto(x.Id, x.Name, x.Kind, x.Filters, x.VisibleFields,
-                x.GroupByField, x.SortField, x.SortDescending, x.HideCompleted, x.SortOrder)).ToList(),
-            links.Select(x => new ItemLinkDto(x.TaskId, x.DocumentId)).ToList());
+                x.GroupByField, x.SortField, x.SortDescending, x.HideCompleted, x.SortOrder)).ToList());
     }
 
     private static StatusCategory? Category(WorkspaceItemDto item, Dictionary<Guid, StatusCategory> categories) =>
