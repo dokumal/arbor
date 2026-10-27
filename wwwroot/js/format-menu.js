@@ -1,4 +1,5 @@
 import { BubbleMenu, isTextSelection } from '../lib/tiptap/tiptap.js';
+import { inCollapsibleTitle, setTextLevel } from './collapsible-blocks.js';
 
 const inList = editor => ['bulletList', 'orderedList', 'taskList'].some(name => editor.isActive(name));
 
@@ -12,8 +13,11 @@ const groups = [
         ['<s>S</s>', 'Durchgestrichen (Strg+Umschalt+S)', chain => chain.toggleStrike(), editor => editor.isActive('strike')]
     ],
     [
-        ['Text', 'Normaler Absatz', chain => chain.clearNodes(), editor => editor.isActive('paragraph') && !inList(editor)],
-        ...[1, 2, 3].map(level => [`H${level}`, `Überschrift ${level}`, chain => chain.clearNodes().setHeading({ level }), editor => editor.isActive('heading', { level })])
+        ['Text', 'Normaler Absatz', (chain, editor) => inCollapsibleTitle(editor) ? setTextLevel(chain, editor, null) : chain.clearNodes(),
+            editor => editor.isActive('paragraph') && !inList(editor) || editor.isActive('detailsSummary', { level: null })],
+        ...[1, 2, 3].map(level => [`H${level}`, `Überschrift ${level}`,
+            (chain, editor) => inCollapsibleTitle(editor) ? setTextLevel(chain, editor, level) : chain.clearNodes().setHeading({ level }),
+            editor => editor.isActive('heading', { level }) || editor.isActive('detailsSummary', { level })])
     ],
     [
         ['•&#8202;≡', 'Aufzählung', chain => chain.toggleBulletList(), editor => editor.isActive('bulletList')],
@@ -44,7 +48,7 @@ export function FormatMenu() {
         if (!button || !editor) return;
         // Focus back synchronously (focus() in a chain waits a frame), so the menu never sees the editor unfocused.
         editor.view.focus();
-        commands[button.dataset.index][2](editor.chain()).run();
+        commands[button.dataset.index][2](editor.chain(), editor).run();
     });
 
     return BubbleMenu.extend({

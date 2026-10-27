@@ -1,9 +1,13 @@
 import { Extension, Suggestion } from '../lib/tiptap/tiptap.js';
 import { escapeHtml } from './render.js?v=statuses';
+import { inCollapsibleTitle, setCollapsible, setTextLevel } from './collapsible-blocks.js';
 
 // Table commands are only offered (and listed first) while the cursor is inside a table, inserting a table only outside one.
+// In the title of a collapsible block only text and heading levels are offered.
 function commandList(pickImage) {
     const block = (title, hint, keywords, run) => ({ title, hint, keywords, run });
+    const level = (title, hint, keywords, value) => ({ title, hint, keywords, inTitle: true, run: (chain, editor) => setTextLevel(chain, editor, value) });
+    const collapsible = (title, hint, keywords, value) => block(title, hint, `aufklappen zuklappen toggle collapsible details ${keywords}`, chain => chain.command(setCollapsible(value)));
     const table = (title, keywords, command) => ({ title, hint: '', keywords, table: true, run: chain => chain[command]() });
     return [
         table('Zeile darüber einfügen', 'row zeile oben', 'addRowBefore'),
@@ -14,13 +18,17 @@ function commandList(pickImage) {
         table('Zeile löschen', 'row zeile entfernen', 'deleteRow'),
         table('Spalte löschen', 'column spalte entfernen', 'deleteColumn'),
         table('Tabelle löschen', 'table entfernen', 'deleteTable'),
-        block('Text', 'Normaler Absatz', 'absatz paragraph normal', chain => chain.setParagraph()),
-        block('Überschrift 1', 'Große Überschrift', 'h1 heading titel', chain => chain.setHeading({ level: 1 })),
-        block('Überschrift 2', 'Mittlere Überschrift', 'h2 heading', chain => chain.setHeading({ level: 2 })),
-        block('Überschrift 3', 'Kleine Überschrift', 'h3 heading', chain => chain.setHeading({ level: 3 })),
+        level('Text', 'Normaler Absatz', 'absatz paragraph normal', null),
+        level('Überschrift 1', 'Große Überschrift', 'h1 heading titel', 1),
+        level('Überschrift 2', 'Mittlere Überschrift', 'h2 heading', 2),
+        level('Überschrift 3', 'Kleine Überschrift', 'h3 heading', 3),
         block('Aufzählung', 'Liste mit Punkten', 'liste bullet ul punkte', chain => chain.toggleBulletList()),
         block('Nummerierte Liste', 'Liste mit Zahlen', 'liste ordered ol nummern', chain => chain.toggleOrderedList()),
         block('Checkliste', 'Liste mit Kästchen zum Abhaken', 'checkbox todo aufgaben haken task', chain => chain.toggleTaskList()),
+        collapsible('Aufklappbereich', 'Titel mit auf- und zuklappbarem Inhalt', '', null),
+        collapsible('Aufklappbare Überschrift 1', 'Große Überschrift zum Aufklappen', 'h1 heading', 1),
+        collapsible('Aufklappbare Überschrift 2', 'Mittlere Überschrift zum Aufklappen', 'h2 heading', 2),
+        collapsible('Aufklappbare Überschrift 3', 'Kleine Überschrift zum Aufklappen', 'h3 heading', 3),
         { ...block('Tabelle', '3 × 3 mit Kopfzeile', 'table raster', chain => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true })), outsideTable: true },
         block('Bild', 'Datei hochladen', 'image foto grafik upload', chain => { chain.run(); pickImage(); return null; })
     ];
@@ -114,11 +122,12 @@ export function SlashCommands(pickImage) {
                 char: '/',
                 items: ({ editor, query }) => {
                     const inTable = editor.isActive('table');
-                    return commands.filter(item => (item.table ? inTable : !(item.outsideTable && inTable)) && matches(item, query));
+                    const inTitle = inCollapsibleTitle(editor);
+                    return commands.filter(item => (inTitle ? item.inTitle : item.table ? inTable : !(item.outsideTable && inTable)) && matches(item, query));
                 },
                 command: ({ editor, range, props: item }) => {
                     const chain = editor.chain().focus().deleteRange(range);
-                    item.run(chain)?.run();
+                    item.run(chain, editor)?.run();
                 },
                 render: slashMenu
             })];

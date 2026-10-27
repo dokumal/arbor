@@ -45,7 +45,7 @@ export function fieldValue(task, key, definitions) {
 export function descriptionText(value) {
     if (!value) return '';
     if (!/<[a-z][^>]*>/i.test(value)) return value;
-    const plain = value.replace(/<\/?(?:p|div|li|h[1-6]|tr|br)\b[^>]*>/gi, ' ')
+    const plain = value.replace(/<\/?(?:p|div|li|h[1-6]|tr|br|summary)\b[^>]*>/gi, ' ')
         .replace(/<[^>]*>/g, ' ');
     const decoder = document.createElement('textarea');
     decoder.innerHTML = plain;

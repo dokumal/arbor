@@ -4,6 +4,7 @@ import { escapeHtml } from './render.js?v=statuses';
 import { SlashCommands } from './slash-commands.js';
 import { FormatMenu } from './format-menu.js';
 import { attachTableToolbar } from './table-toolbar.js';
+import { collapsibleBlocks } from './collapsible-blocks.js';
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const maxImageBytes = 5 * 1024 * 1024;
@@ -13,7 +14,7 @@ const errorLine = () => document.getElementById('task-description-error');
 
 function editableHtml(value) {
     if (!value) return '';
-    if (/<\/?(?:p|div|h[1-6]|ul|ol|li|table|tbody|tr|td|th|figure|img|span|strong|em|b|i|br)\b/i.test(value))
+    if (/<\/?(?:p|div|h[1-6]|ul|ol|li|table|tbody|tr|td|th|figure|img|details|summary|span|strong|em|b|i|br)\b/i.test(value))
         return value;
     return `<p>${escapeHtml(value).replace(/\r?\n/g, '<br>')}</p>`;
 }
@@ -61,7 +62,13 @@ export function setDescription(value) {
             TaskList,
             TaskItem.configure({ nested: true, a11y: { checkboxLabel: node => `Abhaken: ${node.textContent || 'leerer Punkt'}` } }),
             TableKit.configure({ table: { resizable: true } }),
-            Placeholder.configure({ placeholder: 'Details, Notizen und nächste Schritte … Tippe „/“ für Befehle.' }),
+            ...collapsibleBlocks,
+            // includeChildren reaches the titles of collapsible blocks; the stylesheet shows only those and the empty editor's.
+            Placeholder.configure({
+                includeChildren: true,
+                showOnlyCurrent: false,
+                placeholder: ({ node }) => node.type.name === 'detailsSummary' ? 'Titel' : 'Details, Notizen und nächste Schritte … Tippe „/“ für Befehle.'
+            }),
             SlashCommands(pickImage),
             FormatMenu()
         ],

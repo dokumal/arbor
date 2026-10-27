@@ -385,7 +385,24 @@ select.inline-field:focus{cursor:pointer}
 .rich-text hr{border:0;border-top:1px solid var(--border);margin:1em 0}
 .rich-text img{display:block;max-width:100%;height:auto;margin:.4em 0;border-radius:4px}
 .rich-text img.ProseMirror-selectednode{outline:2px solid var(--accent);outline-offset:2px}
-.rich-text p.is-editor-empty:first-child::before{content:attr(data-placeholder);float:left;height:0;color:var(--text-4);pointer-events:none}
+.rich-text p.is-editor-empty:first-child::before,.rich-text summary.is-empty::before{content:attr(data-placeholder);float:left;height:0;color:var(--text-4);pointer-events:none}
+.rich-text [data-type=details]{display:flex;align-items:flex-start;gap:2px;margin:0 0 .6em -4px}
+.rich-text [data-type=details]>button{flex:none;display:flex;align-items:center;justify-content:center;width:22px;height:24px;padding:0;border:0;border-radius:4px;background:none;color:var(--text-3)}
+.rich-text [data-type=details]>button:hover{background:var(--surface-3);color:var(--text)}
+.rich-text [data-type=details]>button::before{content:"";border-left:6px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .12s}
+.rich-text [data-type=details].is-open>button::before{transform:rotate(90deg)}
+.rich-text [data-type=details]>div{flex:1;min-width:0}
+.rich-text summary{display:block;list-style:none;cursor:text}
+.rich-text summary[data-level]{line-height:1.3;letter-spacing:-.01em;font-weight:700}
+.rich-text summary[data-level="1"]{font-size:24px}
+.rich-text summary[data-level="2"]{font-size:20px}
+.rich-text summary[data-level="3"]{font-size:17px}
+.rich-text [data-type=details]:has(>div>summary[data-level]):not(:first-child){margin-top:1.1em}
+.rich-text [data-type=details]:has(>div>summary[data-level="1"])>button{height:31px}
+.rich-text [data-type=details]:has(>div>summary[data-level="2"])>button{height:26px}
+.rich-text [data-type=details]:has(>div>summary[data-level="3"])>button{height:22px}
+.rich-text [data-type=detailsContent]{padding-top:.3em}
+.rich-text [data-type=detailsContent]>:last-child{margin-bottom:0}
 .rich-text .tableWrapper{overflow-x:auto;margin:0 0 .6em}
 .rich-text table{border-collapse:collapse;table-layout:fixed;width:100%;margin:0 0 .6em;overflow:hidden}
 .rich-text .tableWrapper table{margin:0}
