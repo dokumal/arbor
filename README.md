@@ -1,127 +1,79 @@
-# Arbor – Aufgaben und Dokumente
+# Arbor – Tasks and Documents
 
-Eine ASP.NET Core MVC Anwendung mit Entity Framework Core und SQLite. Die Oberfläche verwendet nur eigenes CSS und JavaScript. Es gibt derzeit keine Anmeldung; die App ist für den lokalen Betrieb gedacht.
+Arbor is a local, single-user task and document manager. Plan your work as a tree of folders, tasks and documents, and keep the related knowledge in the same place. It is an ASP.NET Core MVC application (.NET 10) with Entity Framework Core and SQLite; the UI is hand-written vanilla JavaScript and CSS with no build step. There is no authentication, so it is meant to run on your own machine. The user interface is in German.
 
-## Starten
+![Tree view](docs/screenshots/treeview-demo.png)
 
-Voraussetzung ist nur das .NET 10 SDK. Zum Starten reicht:
+## Getting started
+
+The only requirement is the .NET 10 SDK.
 
 ```powershell
 dotnet run
 ```
 
-Danach `http://localhost:5222` öffnen. Beim ersten Start legt die App die Datenbank `.local/arbor.db` an, führt die EF Core Migration aus und legt das erste Projekt mit Beispiel-Feldern und -Ansichten an. Bilder aus Beschreibungen landen in `.local/images`. Der Ordner `.local` ist von Git ausgeschlossen.
+Then open `http://localhost:5222`. On first start the app creates its database in `.local/arbor.db`, applies the migrations and seeds a first project with sample fields and views. Runtime data (database, uploaded images, storage settings) lives in `.local/`, which is git-ignored.
 
-## Speicherorte
+## Features
 
-Über **Einstellungen** in der Seitenleiste lassen sich der Pfad der Datenbank-Datei und der Bilder-Ordner ändern. Pfade können absolut oder relativ zum Programmordner sein; Umgebungsvariablen wie `%USERPROFILE%` werden aufgelöst. Die Auswahl wird in `.local/storage.json` gespeichert, nicht in der Datenbank selbst.
+### Projects, folders, tasks and documents
 
-- Liegt am neuen Datenbank-Pfad noch keine Datei, wird die aktuelle Datenbank dorthin verschoben.
-- Liegt dort bereits eine Arbor-Datenbank, wird sie verwendet (und bei Bedarf migriert); die bisherige Datei bleibt am alten Ort. Dateien anderer Programme werden abgelehnt.
-- Bilder werden in den neuen Ordner verschoben. Dabei werden nur Dateien angefasst, die die App selbst angelegt hat.
+- Work is organized in **projects**, which are strictly separated: each has its own statuses, custom fields and saved views.
+- Inside a project, **folders, tasks and documents** share one tree. Tasks can have subtasks of any depth, and documents can sit under tasks (and vice versa). Items are reordered and re-parented with drag and drop.
+- Tasks have a status, a start date, a due date and a rich-text description. Documents use the same editor. Folders only have a title and a description.
+- **Custom fields** (text, number, date, select, yes/no) can be added to any item.
+- Statuses are configurable (name, color) and belong to one of three categories: open, active or done.
 
-Die Datenbank ist eine einzelne Datei (ohne WAL-Nebendateien). Für ein Backup genügt es, sie zusammen mit dem Bilder-Ordner zu kopieren.
+![Task dialog](docs/screenshots/task-view-demo.png)
 
-## Funktionen
+### Views
 
-- Aufgaben mit beliebig tiefen Unteraufgaben, Status, formatierter Beschreibung sowie Start- und Fälligkeitsdatum
-- Textdokumente im gemeinsamen Baum: Dokumente können unter Aufgaben stehen und ihrerseits Aufgaben oder weitere Dokumente enthalten
-- Ordner mit Titel und Beschreibung für Aufgaben, Dokumente und Unterordner; Ordner können nur auf der obersten Ebene oder unter Ordnern liegen, auch beim Verschieben per Drag & Drop
-- Aufgaben und Dokumente gehören allein über den Baum zusammen: Zu einem Eintrag gehören der nächste übergeordnete Eintrag der anderen Art und die darunter liegenden Einträge der anderen Art; Ordner beenden die Zuordnung
-- Dokumenthinweise in Kanban, Kalender und Zeitachse
-- Gemeinsame Suche in Titeln, Inhalten und eigenen Feldern; Filter und Gruppierung nach dem Eintragstyp „Aufgabe“ oder „Dokument“
-- Seitliches Detailfenster beim Öffnen einer Aufgabe
-- Wahlweise zentriertes Aufgaben-Popup oder Seitenpanel; Auswahl wird im Browser gespeichert
-- Drag & Drop in der Baum-/Listenansicht zum Umsortieren und Ändern der Elternbeziehung, mit Einfügemarkierung und Schutz vor Kreisbeziehungen
-- Eigene Felder vom Typ Text, Zahl, Datum, Auswahl und Ja/Nein
-- Gespeicherte Ansichten für Baum/Tabelle, Kanban, Kalender und Zeitachse
-- Pro Ansicht auswählbare sichtbare Felder und kombinierbare Filter, auch auf eigene Felder
-- Gespeicherte Gruppierung nach Standard- oder eigenem Feld für Baum/Tabelle, Kanban und Zeitachse; Gruppen lassen sich einzeln ein- und ausklappen
-- Gespeicherte Sortierung pro Ansicht (auf- oder absteigend, leere Werte am Ende); im Baum wird innerhalb jeder Ebene sortiert, ohne Sortierung gilt die manuelle Reihenfolge
-- Pro Ansicht einstellbar: abgeschlossene Aufgaben ausblenden
-- Datumsfilter mit relativen Werten wie „Heute“ oder „In 7 Tagen“, die sich täglich mitbewegen; die Ansicht „Anstehend“ zeigt damit offene Aufgaben, die überfällig oder in den nächsten 7 Tagen fällig sind
-- Überfällige und heute fällige offene Aufgaben werden in allen Darstellungen farblich hervorgehoben
-- Schnellanlage unter der Baumansicht: Neue Aufgaben und Dokumente übernehmen die Filterwerte der gewählten Konfiguration („ist“, „enthält“ sowie „vor“/„nach“ bei Datumsfeldern) und erscheinen so direkt in ihr. Angeboten werden nur Eintragstypen, die die Filter erfüllen können; weicht ein gespeicherter Eintrag doch ab, gibt es einen Hinweis
-- Eigene Felder direkt in der Baum-/Tabellenansicht bearbeiten; Optionen von Auswahlfeldern einzeln anlegen, umbenennen und löschen
-- Statuswechsel im Kanban per Drag & Drop; im Baum schließt ein Klick auf den Statuspunkt eine Aufgabe ab (oder öffnet sie wieder), ein Rechtsklick wählt einen beliebigen Status
-- Aufgabenbalken in der Zeitachse verschieben oder über Griffe am Anfang und Ende verlängern/verkürzen; Tagesraster, Datumsvorschau und automatische Speicherung
-- Zeitachse mit wählbaren Intervallen Woche, Monat und 3 Monate; die Auswahl bleibt im Browser gespeichert
-- Tiptap-Editor für Beschreibungen und Dokumentinhalte mit Text, Überschriften, Listen, Tabellen und Bildern. Tippt man `/`, öffnet sich ein Befehlsmenü (Pfeiltasten und Enter, Escape schließt es); innerhalb einer Tabelle bietet es zusätzlich Befehle zum Einfügen und Löschen von Zeilen und Spalten. Dieselben Befehle zeigt eine kleine Leiste über der Tabelle, solange der Cursor darin steht; Tab springt zur nächsten Zelle und hängt in der letzten Zelle eine neue Zeile an. Markdown-Kürzel wie `# `, `- `, `1. ` oder `[ ] ` funktionieren ebenfalls. Bilder lassen sich über `/Bild`, aus der Zwischenablage oder per Drag-and-drop einfügen und werden im eingestellten Bilder-Ordner gespeichert (Standard: `.local/images`).
-- Markiert man im Editor bereits geschriebenen Text, erscheint darüber eine Formatierungsleiste (Tiptaps Bubble Menu): Fett, Kursiv, Unterstrichen, Durchgestrichen, Text, Überschrift 1–3, Aufzählung, nummerierte Liste und Checkliste. Die aktuell gesetzten Formate sind hervorgehoben; Blockformate wandeln die markierten Absätze um, auch zwischen Liste und Überschrift. Fett, Kursiv, Unterstrichen und Durchgestrichen gehen weiterhin auch per Strg+B, Strg+I, Strg+U und Strg+Umschalt+S
-- Checklisten im Editor über `/Checkliste` oder das Kürzel `[ ] `; Punkte lassen sich einrücken (Tab) und per Klick abhaken, abgehakte Punkte erscheinen durchgestrichen. Der Fortschritt aller Checklisten eines Eintrags steht dezent in Baum und Kanban (z. B. „☑ 3/7“, grün, sobald alles erledigt ist) sowie in Kalender und Zeitachse. Abgehakte Kästchen werden wie der übrige Inhalt mit „Speichern“ übernommen
-- Aufklappbare Blöcke (Tiptaps Details-Erweiterung) über `/Aufklappbereich` oder `/Aufklappbare Überschrift 1–3`: Der Text der aktuellen Zeile wird zum Titel, darunter folgt der Inhalt, der sich über den Pfeil links auf- und zuklappen lässt. Der Inhalt kann alles enthalten, auch weitere aufklappbare Blöcke. Enter im Titel springt in den Inhalt, Rücktaste am Anfang des Titels löst den Block wieder in normale Absätze auf. Im Titel bieten das `/`-Menü und die Formatierungsleiste nur Text und Überschrift 1–3 an; sie ändern dort die Größe des Titels. Ob ein Block offen oder zu ist, wird mit „Speichern“ übernommen
-- Gelöschte Einträge landen im Papierkorb und lassen sich von dort wiederherstellen (siehe unten)
+Every project has saved view configurations, each with its own filters, visible fields, grouping and sorting:
 
-## Papierkorb
+- **Tree / table** – the whole hierarchy with inline editing, quick-create buttons and drag and drop.
+- **Kanban** – one column per status; drag cards to change a task's status.
+- **Calendar** – tasks by their dates.
+- **Timeline** – a Gantt-style view (week, month or three months) where bars can be moved or resized to change the dates.
 
-Löschen verschiebt einen Ordner, eine Aufgabe oder ein Dokument mitsamt allen untergeordneten Einträgen in den Papierkorb. Eine Rückfrage gibt es dafür nicht; die Meldung danach bietet „Rückgängig“ an. Einträge im Papierkorb erscheinen in keiner Ansicht, keinem Filter und keiner Suche, behalten aber ihre Feldwerte.
+Filters can use relative dates such as "today" or "in 7 days", so a view like "Upcoming" stays current. Overdue tasks are highlighted. A global search covers titles, content and custom fields.
 
-- Der **Papierkorb** in der Seitenleiste (`/papierkorb`) zeigt die gelöschten Einträge aller Projekte, nach Projekt gruppiert und mit dem ursprünglichen Ort, dem Zeitpunkt und der Zahl der mitgelöschten Einträge
-- „Wiederherstellen“ holt den Eintrag mit allem zurück, was mit ihm gelöscht wurde, an seine frühere Stelle. Liegt der ursprüngliche übergeordnete Eintrag selbst im Papierkorb, kommt er unter den nächsten noch vorhandenen übergeordneten Eintrag (oder auf die oberste Ebene); die Meldung nennt den neuen Ort
-- Wurde ein untergeordneter Eintrag schon vorher einzeln gelöscht, bleibt er ein eigener Eintrag im Papierkorb und wird nicht automatisch mit wiederhergestellt
-- „Endgültig löschen“ entfernt einen Eintrag samt Inhalt unwiderruflich; einzeln gelöschte Einträge darunter bleiben im Papierkorb. „Papierkorb leeren“ entfernt alles
-- Wird ein Projekt gelöscht, verschwinden auch seine Einträge im Papierkorb
+![Timeline view](docs/screenshots/timeline-demo.png)
 
-## Projekte
+### Rich-text editor
 
-Aufgaben, Dokumente und Ordner gehören jeweils zu genau einem Projekt. Projekte sind nicht verschachtelt und streng voneinander getrennt: Jedes Projekt hat eigene Status, eigene Felder und eigene gespeicherte Ansichten. Übergeordnete Einträge, Status und Feldwerte können nur innerhalb desselben Projekts verwendet werden; Status- und Feldnamen müssen nur innerhalb eines Projekts eindeutig sein.
+Descriptions and documents use a [Tiptap](https://tiptap.dev) editor with headings, lists, checklists, tables, images and collapsible blocks. A `/` command menu inserts blocks, a formatting bar appears over selected text, and Markdown shortcuts work as well. Images can be pasted or dropped and are stored in the configured image folder. Checklist progress is shown on tasks in the views.
 
-- Die Projekte stehen in der Seitenleiste. „＋“ legt ein neues Projekt an; es startet mit den Status „Offen“, „In Arbeit“ und „Erledigt“ und den üblichen Ansichten, aber ohne eigene Felder
-- „⋯“ neben einem Projekt öffnet das Bearbeiten: umbenennen oder löschen. Beim Löschen werden alle Einträge, Status, Felder und Ansichten des Projekts entfernt. Das letzte Projekt kann nicht gelöscht werden
-- Ein Projekt hat die Adresse `/projekte/{id}`. Die Startseite öffnet das zuletzt besuchte Projekt
-- Die zuletzt gewählte Ansicht merkt sich der Browser pro Projekt
-- Daten aus der Zeit vor den Projekten liegen im Projekt „Mein Projekt“
+### Time tracking
 
-## Seitenleiste
+The **Aufwände** page records working time in a weekly calendar (Monday to Friday by default). Click or drag to create an entry, drag to move or resize it, and see daily and weekly totals. Time entries are global across projects.
 
-Die Navigation liegt in einer Seitenleiste links. Das Menü-Symbol oben links blendet sie ein und aus; geöffnet liegt sie über der Seite und schließt sich mit Escape oder einem Klick daneben. Mit der Stecknadel lässt sie sich fixieren: Sie steht dann dauerhaft neben dem Inhalt, auch auf den anderen Seiten (im Browser gespeichert). Auf schmalen Bildschirmen liegt sie immer über der Seite.
+### Trash
 
-## Status
+Deleting an item moves it, with everything below it, to the trash. It can be undone right away or restored later from the trash page, which lists deleted items of all projects. Items can be deleted permanently or the whole trash emptied.
 
-Die Status von Aufgaben sind frei konfigurierbar. Jeder Status gehört zu einer festen Kategorie: **Offen**, **In Arbeit** oder **Abgeschlossen**. Die App wertet nur die Kategorie aus: Abgeschlossene Aufgaben gelten als erledigt, werden nie als überfällig markiert und lassen sich pro Ansicht ausblenden. Neue Aufgaben erhalten den ersten offenen Status.
+### Settings and storage
 
-- Verwaltung unter **Eigene Felder** im Eintrag „Status“: Status umbenennen, Farbe wählen, hinzufügen, entfernen und per Ziehen (oder Pfeiltasten am Griff) sortieren, auch in eine andere Kategorie
-- Im Kanban ist jeder Status eine Spalte. Ein Klick auf die Spaltenüberschrift öffnet ein Menü zum Umbenennen, für Farbe und Kategorie, zum Einfügen eines Status links oder rechts und zum Löschen; „＋ Status“ am Ende des Boards legt eine neue Spalte an
-- Beim Löschen eines Status, der noch verwendet wird, wählt man den Status, der seine Aufgaben übernimmt. Gespeicherte Filter auf den gelöschten Status zeigen danach auf diesen Ersatz
-- Jede Kategorie braucht mindestens einen Status
-- Filter können einen einzelnen Status oder eine ganze Kategorie nennen („Alle offenen“, „Alle in Arbeit“, „Alle abgeschlossenen“). Solche Filter bleiben gültig, wenn später Status dazukommen
+The settings page lets you move the database file and the image folder to another location; Arbor moves the existing data for you. The database is a single file, so a backup is just that file plus the image folder.
 
-## Aufwände
+## Project structure
 
-Unter **Aufwände** in der Seitenleiste werden Arbeitszeiten erfasst, getrennt von Aufgaben und Dokumenten und für alle Projekte gemeinsam. Ein Aufwand hat einen Tag, Beginn, Ende und eine Beschreibung.
+| Folder | Contents |
+| --- | --- |
+| `Domain` | Entities and business rules (`ItemKindRules` defines what folders, tasks and documents may have) |
+| `Data` | EF Core `AppDbContext` and migrations |
+| `Services` | All mutations, filtering and initialization |
+| `Controllers` | Thin MVC and JSON endpoints that map routes to services |
+| `Views` | Razor pages |
+| `wwwroot/js`, `wwwroot/css` | The frontend, as plain ES modules and CSS |
+| `wwwroot/lib/tiptap` | Prebuilt Tiptap bundle (source in `tools/tiptap`) |
 
-- Wochenansicht von Montag bis Freitag mit dem Arbeitstag von 8 bis 18 Uhr; mit Pfeilen oder den Pfeiltasten wechselt man die Woche, „Heute“ springt zurück
-- Ein Klick in einen freien Bereich erfasst die angeklickte halbe Stunde, Ziehen wählt einen beliebigen Zeitraum im 15-Minuten-Raster
-- Einträge lassen sich per Drag & Drop auf eine andere Uhrzeit oder einen anderen Tag verschieben und an der Ober- oder Unterkante verlängern bzw. verkürzen; ein Klick öffnet sie zum Bearbeiten oder Löschen
-- Summen pro Tag und für die Woche; überlappende Einträge stehen nebeneinander
-- Liegen Einträge außerhalb von 8 bis 18 Uhr oder am Wochenende, wird die Ansicht automatisch erweitert. Das Wochenende lässt sich außerdem dauerhaft einblenden (im Browser gespeichert)
-- Die angezeigte Woche steht in der Adresse (`/aufwaende?woche=2026-10-12`)
+Validation errors are returned as ProblemDetails (400 for rule violations, 404 for missing entities).
 
-Dokumente verwenden denselben Editor und dieselben eigenen Felder wie Aufgaben. Ordner haben ausschließlich einen Titel und eine Beschreibung. Dokumente und Ordner haben keinen Status oder Aufgabenzeitraum und erscheinen im gemeinsamen Baum; Kanban, Kalender und Zeitachse zeigen Aufgaben. Ordner werden separat gezählt und können über den Button links neben „Aufgabe“ und „Dokument“ erstellt werden. Beim Löschen eines Baumeintrags kommen auch seine untergeordneten Einträge in den Papierkorb.
-
-Für die Baumansicht werden bei Treffern unterhalb eines gefilterten Elternknotens die nötigen Vorfahren zur Orientierung mit angezeigt. Die eigentlichen Filtertreffer bestimmt der Server.
-
-## Aufbau
-
-`Domain` enthält die Datenobjekte und die fachlichen Regeln, `Data` den EF Core Kontext und die Migrationen. `Services` übernimmt alle Änderungen, die Filterung und die Initialisierung. `Controllers` stellt die Oberfläche und JSON Endpunkte bereit und enthält selbst keine Logik.
-
-`ItemKindRules` legt fest, was Ordner, Aufgaben und Dokumente haben dürfen und wie sie kombiniert werden. `FieldKeys` bildet die Feldschlüssel der Ansichten (`dueDate`, `field:{id}`). Optionen von Auswahlfeldern haben eine feste ID; gespeicherte Werte und Filter verweisen auf diese ID, sodass Umbenennen nichts weiter ändern muss. Filter, sichtbare Felder und Optionen liegen als JSON in je einer Spalte und werden in `JsonColumn` umgewandelt.
-
-Services melden Regelverstöße mit `DomainValidationException` (400) oder `EntityNotFoundException` (404). `DomainExceptionFilter` macht daraus einheitlich ProblemDetails mit der Meldung in `detail`. Die Razor Seiten liegen unter `Views/Workspace` und `Views/Settings`, die Oberfläche unter `wwwroot/js` und `wwwroot/css`. `StorageSettings` hält die Speicherorte, `StorageLocationService` verschiebt Datenbank und Bilder beim Ändern.
-
-`Project` ist die oberste Gruppierung. Einträge, Status, eigene Felder und Ansichten tragen eine `ProjectId`; Feldwerte hängen an Einträgen und gehören damit ebenfalls zu deren Projekt. `ProjectService` legt Projekte mit ihren Standard-Status und -Ansichten (`ProjectDefaults`) an und löscht sie samt Inhalt. Die Services prüfen, dass alles, worauf ein Eintrag oder eine Ansicht verweist, aus demselben Projekt stammt. Projekte werden unter `/api/projects` verwaltet; Listen und neue Einträge, Felder, Ansichten und Status liegen unter `/api/projects/{projectId}/…`, bestehende Objekte werden direkt über ihre ID angesprochen. Die Seitenleiste steuert `sidebar.js`, die Projekt-ID der Seite liefert `project.js`.
-
-`WorkspaceItem` bildet den gemeinsamen Baum ab und unterscheidet mit `Kind` zwischen Ordner, Aufgabe und Dokument. Jeder Eintrag hat genau einen übergeordneten Eintrag (oder steht auf der obersten Ebene); weitere Beziehungen zwischen Einträgen gibt es nicht. `WorkspaceItemService` übernimmt Änderungen am Baum und den Inhalten sowie die Elternregeln für Ordner. Neue Einträge entstehen unter `/api/projects/{projectId}/items`, bestehende werden unter `/api/items/{id}` geändert. Im Frontend berechnet `item-relations.js` die zugehörigen Einträge aus dem Baum, etwa für die Dokumenthinweise auf Aufgabenkarten.
-
-`TimeEntry` ist ein Aufwand; `TimeEntryService` prüft und speichert ihn (Ende nach Beginn, Beschreibung erforderlich, höchstens 500 Zeichen). Die Endpunkte liegen unter `/api/time-entries` (Abfrage mit `?from=…&to=…`), die Seite unter `/aufwaende`. Die Datums- und Layoutberechnung der Wochenansicht steckt in `time-week.js`, die Bedienung in `time-entries.js`.
-
-Der Papierkorb ist ein Soft-Delete: `DeletedAt` markiert einen gelöschten Eintrag, und alle mitgelöschten Einträge tragen in `DeletedWithId` die ID des Eintrags, der gelöscht wurde. Ein globaler Query-Filter im `AppDbContext` blendet solche Einträge samt ihren Feldwerten in allen Abfragen aus; nur `TrashService` und Operationen auf ganzen Projekten, Status oder Auswahloptionen umgehen ihn mit `IgnoreQueryFilters`. `TrashService` verschiebt in den Papierkorb, listet, stellt wieder her und löscht endgültig; die Endpunkte liegen unter `/api/trash`, die Seite unter `/papierkorb` mit `trash.js`. Den Fortschritt von Checklisten berechnet `checklistProgress` in `render.js` aus dem gespeicherten HTML.
-
-Tiptap 3.32.0 liegt als ein einzelnes, fertig gebündeltes ES-Modul mitsamt Lizenzen unter `wwwroot/lib/tiptap`. Zum Starten ist deshalb weder npm noch eine CDN-Verbindung nötig. Nur wer Tiptap aktualisieren oder weitere Erweiterungen aufnehmen will, braucht Node.js: Versionen in `tools/tiptap/package.json` anpassen, Exporte in `tools/tiptap/entry.js` ergänzen und im Ordner `tools/tiptap` `npm install` und `npm run build` ausführen. Der Editor selbst steckt in `description-editor.js`, das Befehlsmenü in `slash-commands.js`, die Formatierungsleiste für markierten Text in `format-menu.js`, die aufklappbaren Blöcke in `collapsible-blocks.js` (gespeichert als `<details>` mit `<summary data-level="…">`). Für eingefügte Bilder gilt ein Limit von 5 MB pro Bild; unterstützt werden PNG, JPEG, GIF und WebP.
-
-Neue Datenbankänderungen lassen sich mit dem lokalen EF Werkzeug erzeugen:
+To create a new database migration:
 
 ```powershell
 dotnet tool restore
-dotnet tool run dotnet-ef migrations add MeineAenderung --output-dir Data/Migrations
+dotnet ef migrations add <Name> --output-dir Data/Migrations
 ```
+
+Updating the Tiptap bundle requires Node.js: edit `tools/tiptap/entry.js` or `package.json`, then run `npm install` and `npm run build` in `tools/tiptap`.
